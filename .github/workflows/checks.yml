@@ -1,0 +1,27 @@
+name: Checks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install orchestrator dependencies
+        run: pip install -r orchestrator/requirements.txt
+
+      - name: Check sources
+        run: python tools/check_sources.py
+
+      - name: Import orchestrator
+        run: python -c "import importlib.util, sys; sys.path.insert(0, 'orchestrator'); import LLM_Orchestrator"
