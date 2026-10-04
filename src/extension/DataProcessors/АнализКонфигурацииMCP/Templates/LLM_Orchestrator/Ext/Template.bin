@@ -1,6 +1,8 @@
-# server_sync_stable.py
+# LLM_Orchestrator.py - HTTP-сервер, связывающий локальную LLM (Ollama) с MCP-сервером 1С.
+import itertools
 import json
 import logging
+import os
 import re
 import time
 import threading
@@ -11,12 +13,22 @@ from typing import Optional, Dict, Any
 import requests
 import urllib3
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
 # ================== НАСТРОЙКИ ==================
-OLLAMA_URL = "http://localhost:11434/api/generate"
-OLLAMA_MODEL = "qwen2.5-coder:32b"
-MCP_URL = "https://localhost/yt_mcp_test/hs/mcp"
+# Значения по умолчанию можно переопределить переменными окружения с теми же именами.
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/generate")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5-coder:32b")
+# Адрес HTTP-сервиса mcp_APIBackend: http(s)://<сервер>/<имя публикации>/hs/mcp
+MCP_URL = os.environ.get("MCP_URL", "https://localhost/yt_mcp_test/hs/mcp")
+# Проверка TLS-сертификата публикации. По умолчанию выключена: локальные публикации
+# обычно используют самоподписанный сертификат.
+MCP_VERIFY_SSL = os.environ.get("MCP_VERIFY_SSL", "false").lower() in ("1", "true", "yes")
+# Адрес, на котором оркестратор принимает запросы. Авторизации у оркестратора нет,
+# поэтому по умолчанию он доступен только с этого компьютера.
+ORCHESTRATOR_HOST = os.environ.get("ORCHESTRATOR_HOST", "127.0.0.1")
+ORCHESTRATOR_PORT = int(os.environ.get("ORCHESTRATOR_PORT", "9000"))
+
+if not MCP_VERIFY_SSL:
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 MAX_STEPS = 15
 LLM_TIMEOUT = 1800
@@ -415,9 +427,17 @@ def truncate_tool_result(result: Dict[str, Any], max_chars: int = MAX_TOOL_RESUL
 
 
 # ================== MCP ==================
+# Идентификаторы JSON-RPC запросов: уникальные в пределах запуска оркестратора.
+_mcp_request_ids = itertools.count(1)
+
+
+def mcp_payload(method: str, params: Dict[str, Any]) -> Dict[str, Any]:
+    return {"jsonrpc": "2.0", "id": next(_mcp_request_ids), "method": method, "params": params}
+
+
 def mcp_request(payload):
     try:
-        r = requests.post(MCP_URL, json=payload, timeout=MCP_TIMEOUT, verify=False)
+        r = requests.post(MCP_URL, json=payload, timeout=MCP_TIMEOUT, verify=MCP_VERIFY_SSL)
         if r.status_code == 204 or not r.text.strip():
             return None
         r.raise_for_status()
@@ -429,11 +449,11 @@ def mcp_request(payload):
 
 def mcp_initialize():
     logger.info("MCP initialize")
-    mcp_request({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
+    mcp_request(mcp_payload("initialize", {}))
 
 
 def mcp_list_tools():
-    data = mcp_request({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}})
+    data = mcp_request(mcp_payload("tools/list", {}))
     if not data or "result" not in data:
         return []
     return data["result"].get("tools", [])
@@ -460,7 +480,7 @@ def format_tools_by_container(tools: list) -> str:
 
 
 def mcp_call_tool(name, arguments):
-    payload = {"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": name, "arguments": arguments}}
+    payload = mcp_payload("tools/call", {"name": name, "arguments": arguments})
     logger.info(f"MCP CALL: {name} {arguments}")
     data = mcp_request(payload)
     
@@ -903,10 +923,11 @@ class Handler(BaseHTTPRequestHandler):
                 False
             ))
             
-        except json.JSONDecodeError as e:
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            # UnicodeDecodeError: тело запроса не в UTF-8 (например, отправлено в CP1251)
             logger.error(f"Ошибка JSON в запросе: {e}")
             self.reply(400, create_error_response(
-                "Невалидный JSON в запросе",
+                "Невалидный JSON в запросе (ожидается UTF-8)",
                 "invalid_json",
                 {"error": str(e)},
                 False
@@ -927,6 +948,9 @@ class Handler(BaseHTTPRequestHandler):
     
     def reply(self, code, response_obj):
         """Отправляет JSON ответ в стандартном формате"""
+        # Признак того, что строка статуса уже отправлена: повторно отправлять
+        # ответ с ошибкой в этом случае нельзя.
+        status_sent = False
         try:
             if not isinstance(response_obj, dict):
                 response_obj = create_error_response(
@@ -951,13 +975,14 @@ class Handler(BaseHTTPRequestHandler):
             
             body = json.dumps(response_obj, ensure_ascii=False, indent=2).encode('utf-8')
             self.send_response(code)
+            status_sent = True
             self.send_header('Content-Type', 'application/json; charset=utf-8')
             self.send_header('Content-Length', str(len(body)))
             self.end_headers()
             self.wfile.write(body)
         except Exception as e:
             logger.error(f"Ошибка при отправке ответа: {e}")
-            if not self.headers_sent:
+            if not status_sent:
                 error_response = create_error_response(
                     f"Ошибка при отправке ответа: {str(e)[:100]}",
                     "response_error",
@@ -974,7 +999,7 @@ class Handler(BaseHTTPRequestHandler):
 
 # ================== START ==================
 if __name__ == "__main__":
-    print("🚀 LLM-Orchestrator запущен: http://localhost:9000")
+    print(f"🚀 LLM-Orchestrator запущен: http://{ORCHESTRATOR_HOST}:{ORCHESTRATOR_PORT}")
     print("=" * 50)
     
     try:
@@ -994,8 +1019,9 @@ if __name__ == "__main__":
         warmup_llm_async()
         
         # Запуск сервера
-        server = HTTPServer(("0.0.0.0", 9000), Handler)
-        logger.info("✅ Сервер готов к приему запросов на порту 9000")
+        logger.info(f"MCP-сервер 1С: {MCP_URL}")
+        server = HTTPServer((ORCHESTRATOR_HOST, ORCHESTRATOR_PORT), Handler)
+        logger.info(f"✅ Сервер готов к приему запросов: {ORCHESTRATOR_HOST}:{ORCHESTRATOR_PORT}")
         logger.info("⏳ LLM прогревается в фоновом режиме, первые запросы могут быть медленнее")
         server.serve_forever()
         
