@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# Логи оркестратора и тестов
+*.log
+
+# Временные файлы сборки и тестовые базы 1С
+/out/
+/tmp/
+*.1CD
+*.1CL
+*.cfl
+1Cv8FTxt/
+1Cv8JobScheduler/
+
+# IDE
+.vscode/
+.idea/
