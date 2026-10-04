@@ -30,6 +30,7 @@
 		<ChildObjects>
 			<Form>Форма</Form>
 			<Template>LLM_Orchestrator</Template>
+			<Template>ОформлениеОтвета</Template>
 		</ChildObjects>
 	</DataProcessor>
 </MetaDataObject>

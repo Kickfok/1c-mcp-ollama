@@ -1,14 +1,21 @@
 # LLM_Orchestrator.py - HTTP-сервер, связывающий локальную LLM (Ollama) с MCP-сервером 1С.
+import collections
 import itertools
 import json
 import logging
 import os
 import re
+import shutil
+import subprocess
+import sys
 import time
 import threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
+import uuid
+import webbrowser
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from hashlib import sha1
 from typing import Optional, Dict, Any
+from urllib.parse import urlparse, parse_qs
 
 import requests
 import urllib3
@@ -42,7 +49,8 @@ LLM_RETRY_DELAY = 2
 # Число -> задать явно. Если слоев больше, чем помещается в видеопамять,
 #          runner падает с "CUDA error / out of memory".
 #          На 12 ГБ (RTX 5070) помещается около 24 слоев.
-OLLAMA_NUM_GPU = None
+# Переменная окружения OLLAMA_NUM_GPU задает число; пустое значение - автоподбор.
+OLLAMA_NUM_GPU = int(os.environ["OLLAMA_NUM_GPU"]) if os.environ.get("OLLAMA_NUM_GPU", "").strip() else None
 
 # Размер контекстного окна модели.
 # 4096 стабильно грузится на 12 ГБ VRAM вместе с 32B-моделью.
@@ -62,6 +70,95 @@ MAX_TOOL_RESULT_CHARS = 2500
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("LLM-Orchestrator")
+
+# Число событий, которые журнал хранит для монитора и формы 1С.
+JOURNAL_SIZE = 3000
+# Длина фрагмента ответа инструмента, который попадает в событие журнала.
+TRACE_PREVIEW_CHARS = 1200
+
+
+# ================== ЖУРНАЛ СОБЫТИЙ ==================
+# Журнал читают монитор (GET /monitor) и форма 1С (GET /events): по нему видно, какой шаг
+# выполняет модель, какие инструменты 1С она вызвала и сколько времени занял каждый шаг.
+class EventJournal:
+    def __init__(self, size: int):
+        self._events = collections.deque(maxlen=size)
+        self._seq = 0
+        self._lock = threading.Lock()
+
+    def add(self, kind: str, text: str, request_id: Optional[str] = None,
+            level: int = logging.INFO, data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        now = time.time()
+        with self._lock:
+            self._seq += 1
+            event = {
+                "seq": self._seq,
+                "ts": round(now, 3),
+                "time": time.strftime("%H:%M:%S", time.localtime(now)),
+                "request": request_id,
+                "kind": kind,
+                "level": logging.getLevelName(level),
+                "text": text,
+                "data": data or {},
+            }
+            self._events.append(event)
+        return event
+
+    @property
+    def last_seq(self) -> int:
+        return self._seq
+
+    def since(self, seq: int, request_id: Optional[str] = None, limit: int = 500) -> list:
+        with self._lock:
+            events = [e for e in self._events
+                      if e["seq"] > seq and (request_id is None or e["request"] == request_id)]
+        return events[:limit]
+
+
+JOURNAL = EventJournal(JOURNAL_SIZE)
+
+# Идентификатор запроса, который обрабатывает текущий поток: по нему записи лога
+# из call_llm и mcp_call_tool попадают в журнал того запроса, к которому относятся.
+_context = threading.local()
+
+
+def current_request_id() -> Optional[str]:
+    return getattr(_context, "request_id", None)
+
+
+class JournalLogHandler(logging.Handler):
+    """Переносит записи лога в журнал событий. Записи, созданные функцией trace, пропускаются:
+    они уже есть в журнале в виде событий с данными."""
+
+    def emit(self, record):
+        if getattr(record, "journaled", False):
+            return
+        try:
+            JOURNAL.add("log", record.getMessage(), current_request_id(), record.levelno)
+        except Exception:
+            self.handleError(record)
+
+
+logger.addHandler(JournalLogHandler())
+
+
+def trace(kind: str, text: str, level: int = logging.INFO, **data) -> Dict[str, Any]:
+    """Пишет строку в консоль и событие с данными в журнал текущего запроса."""
+    logger.log(level, text, extra={"journaled": True})
+    return JOURNAL.add(kind, text, current_request_id(), level, data)
+
+
+def tool_result_preview(result: Any) -> str:
+    """Текст ответа инструмента для журнала: первый текстовый блок content."""
+    if isinstance(result, dict) and isinstance(result.get("content"), list):
+        for item in result["content"]:
+            if isinstance(item, dict) and isinstance(item.get("text"), str):
+                return item["text"]
+    return json.dumps(result, ensure_ascii=False)
+
+
+def tool_result_length(result: Any) -> int:
+    return len(tool_result_preview(result))
 
 # ================== SYSTEM PROMPT ==================
 SYSTEM_PROMPT = """
@@ -479,7 +576,7 @@ def format_tools_by_container(tools: list) -> str:
 
 def mcp_call_tool(name, arguments):
     payload = mcp_payload("tools/call", {"name": name, "arguments": arguments})
-    logger.info(f"MCP CALL: {name} {arguments}")
+    logger.info(f"MCP CALL: {name} {arguments}", extra={"journaled": True})
     data = mcp_request(payload)
     
     # Получаем результат
@@ -488,7 +585,8 @@ def mcp_call_tool(name, arguments):
     # Нормализуем результат в единый формат
     normalized_result = normalize_mcp_result(result)
     
-    logger.info(f"MCP RESPONSE (normalized): {json.dumps(normalized_result, ensure_ascii=False)[:200]}...")
+    logger.info(f"MCP RESPONSE (normalized): {json.dumps(normalized_result, ensure_ascii=False)[:200]}...",
+                extra={"journaled": True})
     
     return normalized_result
 
@@ -548,9 +646,15 @@ def call_llm(prompt: str) -> Dict[str, Any]:
                     Exception(f"HTTP {r.status_code}: {r.text[:200]}"),
                     r
                 )
-                
+
                 logger.warning(f"Ошибка HTTP {r.status_code} от LLM: {error_info}")
-                
+
+                # Ошибка 5xx бывает разовой: runner Ollama падает при загрузке модели с
+                # "CUDA error" (failed to allocate pinned memory), а следующая загрузка проходит.
+                if r.status_code >= 500 and attempt < LLM_MAX_RETRIES - 1:
+                    time.sleep(LLM_RETRY_DELAY * (attempt + 1))
+                    continue
+
                 return {
                     "action": "final",
                     "Text": error_info['message'],
@@ -565,6 +669,13 @@ def call_llm(prompt: str) -> Dict[str, Any]:
             
             response_data = r.json()
             raw_text = response_data.get("response", "")
+            # Статистика Ollama для журнала: заполнение контекста и скорость генерации
+            _context.llm_stats = {
+                "prompt_tokens": response_data.get("prompt_eval_count"),
+                "output_tokens": response_data.get("eval_count"),
+                "load_seconds": round((response_data.get("load_duration") or 0) / 1e9, 1),
+                "attempt": attempt + 1,
+            }
             
             # Извлекаем JSON из ответа
             json_str = find_valid_json(raw_text)
@@ -750,80 +861,619 @@ def hash_tool_call(name, args):
     return sha1(json.dumps({"name": name, "args": args}, sort_keys=True).encode()).hexdigest()
 
 
+# ================== МОНИТОР ==================
+# Страница монитора (GET /monitor): журнал запросов в оформлении проекта, темная и светлая тема.
+# Встроена в файл, чтобы оркестратор оставался одним файлом: форма 1С выгружает его из макета.
+LOGO_SVG = r"""<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">1C MCP Ollama Bridge</title>
+  <desc id="desc">Мост MCP между базой 1С и локальной языковой моделью</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1B1F3B"/>
+      <stop offset="1" stop-color="#0D1024"/>
+    </linearGradient>
+    <linearGradient id="arc" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#FFC21A"/>
+      <stop offset="1" stop-color="#8B7CFF"/>
+    </linearGradient>
+    <linearGradient id="db" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFD54A"/>
+      <stop offset="1" stop-color="#F5A800"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#8B7CFF" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#8B7CFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="256" height="256" rx="56" fill="url(#bg)"/>
+  <g transform="translate(0 22)">
+
+  <!-- База 1С: цилиндр -->
+  <g transform="translate(26 112)">
+    <path d="M0 14 v52 a34 12 0 0 0 68 0 v-52" fill="url(#db)"/>
+    <ellipse cx="34" cy="14" rx="34" ry="12" fill="#FFE27A"/>
+    <path d="M0 33 a34 12 0 0 0 68 0" fill="none" stroke="#C98500" stroke-width="2.5" opacity="0.55"/>
+    <path d="M0 50 a34 12 0 0 0 68 0" fill="none" stroke="#C98500" stroke-width="2.5" opacity="0.55"/>
+    <text x="34" y="54" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="800" fill="#1B1F3B">1C</text>
+  </g>
+
+  <!-- Языковая модель: узлы нейросети -->
+  <circle cx="196" cy="140" r="46" fill="url(#glow)"/>
+  <g stroke="#B9B0FF" stroke-width="2.5" opacity="0.9">
+    <line x1="196" y1="112" x2="172" y2="140"/>
+    <line x1="196" y1="112" x2="220" y2="140"/>
+    <line x1="172" y1="140" x2="196" y2="168"/>
+    <line x1="220" y1="140" x2="196" y2="168"/>
+    <line x1="172" y1="140" x2="220" y2="140"/>
+    <line x1="196" y1="112" x2="196" y2="168"/>
+  </g>
+  <g fill="#8B7CFF" stroke="#E4E0FF" stroke-width="2.5">
+    <circle cx="196" cy="112" r="8"/>
+    <circle cx="172" cy="140" r="8"/>
+    <circle cx="220" cy="140" r="8"/>
+    <circle cx="196" cy="168" r="8"/>
+  </g>
+
+  <!-- Мост MCP -->
+  <path d="M60 116 C 92 40, 164 40, 196 98" fill="none" stroke="url(#arc)" stroke-width="9" stroke-linecap="round"/>
+  <g stroke-width="3" stroke-linecap="round">
+    <line x1="92" y1="77" x2="92" y2="118" stroke="#E8B53A"/>
+    <line x1="128" y1="64" x2="128" y2="118" stroke="#C3A06A"/>
+    <line x1="164" y1="72" x2="164" y2="118" stroke="#A493E8"/>
+  </g>
+  <line x1="66" y1="120" x2="184" y2="120" stroke="#5B5F86" stroke-width="5" stroke-linecap="round"/>
+  <rect x="98" y="38" width="60" height="24" rx="12" fill="#0D1024" stroke="url(#arc)" stroke-width="2.5"/>
+  <text x="128" y="55" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" fill="#FFFFFF" letter-spacing="1">MCP</text>
+
+  <!-- Поток данных по мосту -->
+  <circle cx="92" cy="72" r="4" fill="#FFC21A"/>
+  <circle cx="164" cy="68" r="4" fill="#A99CFF"/>
+
+  </g>
+</svg>"""
+
+MONITOR_HTML = r"""<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Монитор оркестратора</title>
+<link rel="icon" href="/logo.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #0B0D1F; --panel: #12152E; --panel2: #171B3A; --term: #0E1124; --termbar: #191D38;
+    --border: #2C3366; --text: #D7DAF5; --dim: #7D84B2; --strong: #FFFFFF;
+    --y: #FFC94D; --v: #B3A6FF; --c: #7DD3FC; --ok: #6EE7A8; --err: #FF6B6B; --warn: #FFB454;
+    --chip: #1E2350; --chipb: #39407A; --hl: rgba(255, 201, 77, 0.08); --box: #151A36;
+    --shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  }
+  body.light {
+    --bg: #F3F4FA; --panel: #FFFFFF; --panel2: #F7F8FC; --term: #FFFFFF; --termbar: #EEF0F8;
+    --border: #DDE1EF; --text: #1F2440; --dim: #6B7194; --strong: #0D1024;
+    --y: #A86A00; --v: #5B49D6; --c: #0B6FA0; --ok: #12864A; --err: #D23C3C; --warn: #A65F00;
+    --chip: #F1F2FA; --chipb: #DCE0F0; --hl: rgba(255, 194, 26, 0.12); --box: #F7F8FD;
+    --shadow: 0 12px 34px rgba(27, 31, 59, 0.10);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--text); font: 14px/1.45 "Segoe UI", system-ui, Arial, sans-serif;
+         display: flex; flex-direction: column; }
+  .mono { font-family: "Cascadia Mono", Consolas, "DejaVu Sans Mono", monospace; font-size: 13px; }
+
+  header { display: flex; align-items: center; gap: 16px; padding: 14px 20px; border-bottom: 1px solid var(--border);
+           background: var(--panel); }
+  header img { width: 44px; height: 44px; border-radius: 10px; }
+  .brand h1 { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -0.2px; color: var(--strong); }
+  .brand h1 .y { color: #F5A800; } .brand h1 .v { color: #8B7CFF; }
+  .brand div { font-size: 12.5px; color: var(--dim); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; align-items: center; }
+  .chip { display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; border-radius: 999px;
+          background: var(--chip); border: 1px solid var(--chipb); font-size: 12.5px; white-space: nowrap; }
+  .chip b { font-weight: 600; color: var(--strong); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); }
+  .dot.ok { background: var(--ok); box-shadow: 0 0 0 3px rgba(110, 231, 168, 0.18); }
+  .dot.busy { background: var(--y); animation: pulse 1.1s ease-in-out infinite; }
+  .dot.err { background: var(--err); }
+  @keyframes pulse { 50% { opacity: 0.35; } }
+  button { font: inherit; color: var(--text); background: var(--chip); border: 1px solid var(--chipb);
+           border-radius: 8px; padding: 5px 11px; cursor: pointer; }
+  button:hover { border-color: var(--v); }
+  button.on { background: var(--v); color: #fff; border-color: var(--v); }
+  .seg { display: inline-flex; }
+  .seg button { border-radius: 0; margin-left: -1px; }
+  .seg button:first-child { border-radius: 8px 0 0 8px; } .seg button:last-child { border-radius: 0 8px 8px 0; }
+
+  main { flex: 1; display: grid; grid-template-columns: 300px 1fr; gap: 16px; padding: 16px 20px; min-height: 0; }
+  aside { display: flex; flex-direction: column; gap: 16px; min-height: 0; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); }
+  .card h2 { margin: 0; padding: 12px 14px 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px;
+             color: var(--dim); font-weight: 700; }
+  .scroll { overflow: auto; min-height: 0; }
+  #history { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  #historyList { padding: 0 8px 10px; }
+  .req { padding: 9px 10px; border-radius: 9px; cursor: pointer; border: 1px solid transparent; }
+  .req:hover { background: var(--panel2); border-color: var(--border); }
+  .req .q { color: var(--strong); font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .req .m { color: var(--dim); font-size: 12px; margin-top: 3px; display: flex; gap: 8px; align-items: center; }
+  .tools { padding: 0 14px 12px; max-height: 38vh; }
+  .tools .grp { margin-top: 8px; font-weight: 700; font-size: 12.5px; color: var(--strong); }
+  .tools .grp span { color: var(--dim); font-weight: 400; }
+  .tools .t { font-size: 12.5px; padding: 2px 0 2px 12px; color: var(--c); cursor: default; }
+  .empty { color: var(--dim); padding: 6px 14px 14px; font-size: 13px; }
+
+  .term { display: flex; flex-direction: column; min-height: 0; background: var(--term); border: 1px solid var(--border);
+          border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
+  .termbar { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; background: var(--termbar);
+             border-bottom: 1px solid var(--border); }
+  .termbar i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .termbar .title { flex: 1; text-align: center; color: var(--dim); }
+  #log { flex: 1; padding: 14px 18px 22px; overflow: auto; }
+  .line { display: flex; gap: 10px; padding: 2px 0; white-space: pre-wrap; word-break: break-word; animation: show 0.25s ease-out both; }
+  @keyframes show { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+  .line .t { color: var(--dim); flex: none; }
+  .line .k { flex: none; font-weight: 700; }
+  .line .x { flex: 1; min-width: 0; }
+  .k.req { color: var(--y); } .k.llm { color: var(--v); } .k.mcp { color: var(--v); } .k.ok { color: var(--ok); }
+  .k.err { color: var(--err); } .k.warn { color: var(--warn); } .k.log { color: var(--dim); font-weight: 400; }
+  .y { color: var(--y); } .v { color: var(--v); } .c { color: var(--c); } .ok { color: var(--ok); } .err { color: var(--err); }
+  .dim { color: var(--dim); } .warn { color: var(--warn); }
+  .sep { margin: 16px 0 8px; padding: 10px 14px; border-radius: 10px; background: var(--hl); border: 1px solid var(--border); }
+  .sep .q { color: var(--y); font-weight: 700; font-size: 14px; white-space: pre-wrap; }
+  .sep .m { color: var(--dim); font-size: 12px; margin-top: 2px; }
+  .box { margin: 8px 0 6px 74px; padding: 12px 16px; border-radius: 10px; background: var(--box); border: 1px solid var(--border); }
+  .box.err { border-color: var(--err); }
+  .meta { color: var(--dim); }
+  .bar { display: inline-block; width: 90px; height: 6px; border-radius: 3px; background: var(--chipb); vertical-align: middle; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--v); }
+  .bar.full i { background: var(--err); }
+  .more { color: var(--c); cursor: pointer; text-decoration: underline dotted; }
+  .preview { display: none; margin: 4px 0 6px 74px; padding: 10px 12px; border-radius: 8px; background: var(--box);
+             border: 1px dashed var(--border); color: var(--c); max-height: 340px; overflow: auto; }
+  .preview.open { display: block; }
+  .spin { display: inline-block; width: 10px; height: 10px; border: 2px solid var(--v); border-right-color: transparent;
+          border-radius: 50%; animation: rot 0.8s linear infinite; vertical-align: -1px; margin-left: 6px; }
+  @keyframes rot { to { transform: rotate(360deg); } }
+  footer { display: flex; gap: 18px; padding: 8px 20px; border-top: 1px solid var(--border); background: var(--panel);
+           color: var(--dim); font-size: 12px; }
+  footer span b { color: var(--text); font-weight: 600; }
+  .cursor { animation: blink 1s steps(1) infinite; color: var(--text); }
+  @keyframes blink { 50% { opacity: 0; } }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } aside { display: none; } }
+</style>
+</head>
+<body>
+<header>
+  <img src="/logo.svg" alt="">
+  <div class="brand">
+    <h1><span class="y">1C</span> MCP <span class="v">Ollama</span> Bridge</h1>
+    <div>Монитор оркестратора: запросы, шаги модели, вызовы инструментов 1С</div>
+  </div>
+  <div class="chips">
+    <span class="chip"><span class="dot" id="stateDot"></span><b id="stateText">Подключение...</b></span>
+    <span class="chip" title="Модель Ollama">🧠 <b id="model">-</b></span>
+    <span class="chip" title="Инструменты MCP из 1С">🧰 <b id="toolsCount">-</b></span>
+    <span class="chip" title="HTTP-сервис 1С" id="mcpChip">🔌 <b id="mcpUrl">-</b></span>
+    <span class="seg"><button id="fReq" class="on">Запросы</button><button id="fAll">Весь журнал</button></span>
+    <button id="autoBtn" class="on" title="Прокручивать к новым событиям">⇣ Автопрокрутка</button>
+    <button id="clearBtn" title="Очистить экран (журнал на сервере не меняется)">Очистить</button>
+    <button id="themeBtn" title="Светлая или темная тема">☀</button>
+  </div>
+</header>
+<main>
+  <aside>
+    <section class="card" id="history">
+      <h2>Запросы</h2>
+      <div class="scroll" id="historyList"><div class="empty">Запросов пока не было</div></div>
+    </section>
+    <section class="card">
+      <h2>Инструменты 1С</h2>
+      <div class="scroll tools" id="tools"><div class="empty">Загрузка...</div></div>
+    </section>
+  </aside>
+  <section class="term">
+    <div class="termbar">
+      <i style="background:#FF6B6B"></i><i style="background:#FFC94D"></i><i style="background:#6EE7A8"></i>
+      <span class="title mono" id="termTitle">LLM_Orchestrator.py</span>
+    </div>
+    <div id="log" class="mono"></div>
+  </section>
+</main>
+<footer>
+  <span>Событий: <b id="evCount">0</b></span>
+  <span>Обновлено: <b id="updated">-</b></span>
+  <span>Запущен: <b id="started">-</b></span>
+  <span>Адрес: <b id="addr">-</b></span>
+</footer>
+<script>
+(function () {
+  var seq = 0, showAll = false, autoScroll = true, total = 0, online = null;
+  var logEl = document.getElementById("log");
+  var requests = {}, order = [], pending = {};
+  var KIND = {
+    request: ["ЗАПРОС", "req"], llm_start: ["LLM", "llm"], llm_done: ["LLM", "llm"],
+    tool_call: ["MCP CALL", "mcp"], tool_result: ["MCP RESPONSE", "mcp"], final: ["ГОТОВО", "ok"],
+    error: ["ОШИБКА", "err"], warning: ["ВНИМАНИЕ", "warn"], log: ["", "log"]
+  };
+
+  function $(id) { return document.getElementById(id); }
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined && text !== null) e.textContent = text;
+    return e;
+  }
+  function span(cls, text) { return el("span", cls, text); }
+  function json(v) { try { return JSON.stringify(v); } catch (e) { return String(v); } }
+  function num(n) { return n === null || n === undefined ? "?" : String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " "); }
+  function sec(s) {
+    if (s === undefined || s === null) return "";
+    if (s < 10) return s.toFixed(1) + " с";
+    if (s < 60) return Math.round(s) + " с";
+    var t = Math.round(s);
+    return Math.floor(t / 60) + " мин " + (t % 60) + " с";
+  }
+
+  // Тема: сохраняется в браузере, по умолчанию темная, как в README.
+  function setTheme(light) {
+    document.body.className = light ? "light" : "";
+    $("themeBtn").textContent = light ? "☾" : "☀";
+    try { localStorage.setItem("mcpMonitorTheme", light ? "light" : "dark"); } catch (e) {}
+  }
+  var savedTheme = null;
+  try { savedTheme = localStorage.getItem("mcpMonitorTheme"); } catch (e) {}
+  setTheme(savedTheme === "light" || /[?&]theme=light/.test(location.search));
+  $("themeBtn").onclick = function () { setTheme(document.body.className !== "light"); };
+
+  $("fReq").onclick = function () { showAll = false; this.className = "on"; $("fAll").className = ""; rerender(); };
+  $("fAll").onclick = function () { showAll = true; this.className = "on"; $("fReq").className = ""; rerender(); };
+  $("autoBtn").onclick = function () { autoScroll = !autoScroll; this.className = autoScroll ? "on" : ""; };
+  $("clearBtn").onclick = function () { logEl.innerHTML = ""; allEvents = []; };
+
+  var allEvents = [];
+  function rerender() { logEl.innerHTML = ""; for (var i = 0; i < allEvents.length; i++) render(allEvents[i]); scrollDown(true); }
+  function scrollDown(force) { if (autoScroll || force) logEl.scrollTop = logEl.scrollHeight; }
+
+  function line(ev, label, cls) {
+    var row = el("div", "line");
+    row.appendChild(span("t", ev.time));
+    if (label) row.appendChild(span("k " + cls, label));
+    var x = span("x");
+    row.appendChild(x);
+    if (ev.request) row.setAttribute("data-req", ev.request);
+    logEl.appendChild(row);
+    return x;
+  }
+
+  function render(ev) {
+    var d = ev.data || {}, k = KIND[ev.kind] || ["", "log"], x;
+    if (ev.kind === "log") {
+      if (!showAll && ev.level !== "WARNING" && ev.level !== "ERROR") return;
+      var cls = ev.level === "ERROR" ? "err" : (ev.level === "WARNING" ? "warn" : "log");
+      x = line(ev, ev.level === "INFO" ? "" : ev.level, cls);
+      x.appendChild(span(cls === "log" ? "" : cls, ev.text));
+      return;
+    }
+    if (ev.kind === "request") {
+      var box = el("div", "sep");
+      box.id = "req-" + ev.request;
+      box.appendChild(el("div", "q", "▶ " + (d.question || ev.text)));
+      box.appendChild(el("div", "m mono", ev.time + "  ·  запрос " + ev.request));
+      logEl.appendChild(box);
+      return;
+    }
+    if (ev.kind === "llm_start") {
+      x = line(ev, k[0], k[1]);
+      x.appendChild(span("", "Шаг " + d.step + ": модель формирует ответ"));
+      var sp = span("spin");
+      x.appendChild(sp);
+      x.appendChild(span("dim", "  промпт " + num(d.prompt_chars) + " симв."));
+      pending[ev.request + ":" + d.step] = sp;
+      return;
+    }
+    if (ev.kind === "llm_done") {
+      var key = ev.request + ":" + d.step;
+      if (pending[key] && pending[key].parentNode) pending[key].parentNode.removeChild(pending[key]);
+      delete pending[key];
+      x = line(ev, k[0], k[1]);
+      x.appendChild(span("", "Шаг " + d.step + ": " + sec(d.seconds) + "  "));
+      if (d.prompt_tokens) {
+        var ratio = d.num_ctx ? Math.min(1, d.prompt_tokens / d.num_ctx) : 0;
+        var bar = el("span", "bar" + (ratio >= 0.98 ? " full" : ""));
+        var fill = el("i"); fill.style.width = Math.round(ratio * 100) + "%"; bar.appendChild(fill);
+        x.appendChild(bar);
+        x.appendChild(span(ratio >= 0.98 ? "err" : "dim", "  контекст " + num(d.prompt_tokens) + " / " + num(d.num_ctx) +
+          " ток." + (ratio >= 0.98 ? " (заполнен)" : "") + "  ·  ответ " + num(d.output_tokens) + " ток."));
+      }
+      if (d.load_seconds && d.load_seconds >= 1) x.appendChild(span("dim", "  ·  загрузка модели " + sec(d.load_seconds)));
+      x.appendChild(span("", "  →  "));
+      x.appendChild(span(d.action === "call_tool" ? "v" : (d.action === "final" ? "ok" : "warn"),
+        d.action === "call_tool" ? "вызов " + d.tool : (d.action === "final" ? "итоговый ответ" : String(d.action))));
+      return;
+    }
+    if (ev.kind === "tool_call") {
+      x = line(ev, k[0], k[1]);
+      x.appendChild(span("", d.tool + " "));
+      x.appendChild(span("c", json(d.arguments || {})));
+      if (d.container) x.appendChild(span("dim", "   " + d.container));
+      return;
+    }
+    if (ev.kind === "tool_result") {
+      x = line(ev, k[0], k[1]);
+      x.appendChild(span(d.is_error ? "err" : "", d.tool + "  "));
+      x.appendChild(span("meta", num(d.chars) + " симв.  ·  " + sec(d.seconds) + (d.truncated ? "  ·  обрезано для контекста модели" : "") + "  "));
+      var pre = el("div", "preview mono", d.preview || "");
+      var more = span("more", "показать ответ");
+      more.onclick = function () { pre.className = pre.className.indexOf("open") < 0 ? "preview mono open" : "preview mono"; };
+      x.appendChild(more);
+      logEl.appendChild(pre);
+      return;
+    }
+    if (ev.kind === "final" || ev.kind === "error") {
+      var b = el("div", "box" + (ev.kind === "error" ? " err" : ""));
+      var r1 = el("div");
+      r1.appendChild(span("dim", "{ ")); r1.appendChild(span("c", "\"Success\"")); r1.appendChild(span("dim", ": "));
+      r1.appendChild(span(d.success ? "ok" : "err", d.success ? "true" : "false")); r1.appendChild(span("dim", ","));
+      var r2 = el("div"); r2.style.paddingLeft = "14px";
+      r2.appendChild(span("c", "\"Text\"")); r2.appendChild(span("dim", ": ")); r2.appendChild(span("y", json(ev.text)));
+      r2.appendChild(span("dim", " }"));
+      var r3 = el("div", "meta"); r3.style.marginTop = "6px";
+      r3.textContent = "шагов: " + d.steps + "  ·  время: " + sec(d.seconds) + "  ·  ";
+      var res = el("div", "preview mono", JSON.stringify(d.result, null, 2));
+      var m2 = span("more", "показать Result");
+      m2.onclick = function () { res.className = res.className.indexOf("open") < 0 ? "preview mono open" : "preview mono"; };
+      r3.appendChild(m2);
+      b.appendChild(r1); b.appendChild(r2); b.appendChild(r3);
+      logEl.appendChild(b);
+      logEl.appendChild(res);
+      return;
+    }
+    x = line(ev, k[0], k[1]);
+    x.appendChild(span(k[1], ev.text));
+  }
+
+  function track(ev) {
+    if (!ev.request) return;
+    var r = requests[ev.request];
+    if (!r) { r = requests[ev.request] = { id: ev.request, q: "", state: "busy", time: ev.time, steps: 0, sec: null }; order.unshift(r); }
+    if (ev.kind === "request") r.q = (ev.data && ev.data.question) || ev.text;
+    if (ev.kind === "llm_done") r.steps = ev.data.step;
+    if (ev.kind === "final") { r.state = "ok"; r.sec = ev.data.seconds; }
+    if (ev.kind === "error") { r.state = "err"; r.sec = ev.data.seconds; }
+  }
+
+  function renderHistory() {
+    var list = $("historyList");
+    if (!order.length) return;
+    list.innerHTML = "";
+    for (var i = 0; i < order.length && i < 50; i++) {
+      (function (r) {
+        var item = el("div", "req");
+        item.appendChild(el("div", "q", r.q || r.id));
+        var m = el("div", "m");
+        m.appendChild(span("dot " + r.state));
+        m.appendChild(span("", r.time));
+        m.appendChild(span("", r.state === "busy" ? "выполняется, шаг " + (r.steps + 1) : sec(r.sec) + ", шагов: " + r.steps));
+        item.appendChild(m);
+        item.onclick = function () { var t = $("req-" + r.id); if (t) { autoScroll = false; $("autoBtn").className = ""; t.scrollIntoView({ behavior: "smooth", block: "start" }); } };
+        list.appendChild(item);
+      })(order[i]);
+    }
+  }
+
+  function get(url, ok, fail) {
+    var x = new XMLHttpRequest();
+    x.open("GET", url, true);
+    x.timeout = 5000;
+    x.onload = function () { if (x.status === 200) { try { ok(JSON.parse(x.responseText)); } catch (e) { fail(); } } else fail(); };
+    x.onerror = fail; x.ontimeout = fail;
+    x.send();
+  }
+
+  function setOnline(v, active) {
+    online = v;
+    $("stateDot").className = "dot " + (!v ? "err" : (active ? "busy" : "ok"));
+    $("stateText").textContent = !v ? "Нет связи с оркестратором" : (active ? "Выполняется запрос" + (active > 1 ? " (" + active + ")" : "") : "Ожидает запросов");
+  }
+
+  function poll() {
+    get("/events?since=" + seq, function (r) {
+      setOnline(true, r.active);
+      if (r.seq < seq) { seq = 0; }
+      for (var i = 0; i < r.events.length; i++) {
+        var ev = r.events[i];
+        allEvents.push(ev); track(ev); render(ev); total++;
+        seq = ev.seq;
+      }
+      if (allEvents.length > 4000) allEvents = allEvents.slice(-3000);
+      if (r.events.length) { renderHistory(); scrollDown(false); }
+      $("evCount").textContent = num(total);
+      $("updated").textContent = new Date().toLocaleTimeString();
+      setTimeout(poll, r.active ? 700 : 1500);
+    }, function () { setOnline(false); setTimeout(poll, 3000); });
+  }
+
+  function loadStatus() {
+    get("/health", function (h) {
+      $("model").textContent = h.model + "  ·  ctx " + h.num_ctx + (h.num_gpu !== null ? "  ·  GPU " + h.num_gpu + " сл." : "");
+      $("toolsCount").textContent = h.tools + " инструм.";
+      $("mcpUrl").textContent = h.mcp_url.replace(/^https?:\/\//, "");
+      $("started").textContent = h.started;
+      $("addr").textContent = h.address;
+      $("termTitle").textContent = "LLM_Orchestrator.py  ·  " + h.model + "  ·  " + h.address;
+    }, function () {});
+    get("/tools", function (t) {
+      var groups = {}, names = [], box = $("tools");
+      for (var i = 0; i < t.tools.length; i++) {
+        var g = t.tools[i].container || "Без контейнера";
+        if (!groups[g]) { groups[g] = []; names.push(g); }
+        groups[g].push(t.tools[i]);
+      }
+      box.innerHTML = "";
+      if (!names.length) { box.appendChild(el("div", "empty", "Инструменты не загружены")); return; }
+      names.sort();
+      for (var j = 0; j < names.length; j++) {
+        var h = el("div", "grp", names[j] + " ");
+        h.appendChild(span("", "(" + groups[names[j]].length + ")"));
+        box.appendChild(h);
+        for (var n = 0; n < groups[names[j]].length; n++) {
+          var tl = el("div", "t mono", groups[names[j]][n].name);
+          tl.title = groups[names[j]][n].description;
+          box.appendChild(tl);
+        }
+      }
+    }, function () {});
+  }
+
+  loadStatus();
+  setInterval(loadStatus, 30000);
+  poll();
+})();
+</script>
+</body>
+</html>"""
+
+
 # ================== HTTP SERVER ==================
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         """Отключаем стандартное логирование запросов от BaseHTTPRequestHandler"""
         pass
-    
+
+    # ---------- GET: монитор, журнал событий, состояние ----------
+    def do_GET(self):
+        url = urlparse(self.path)
+        params = parse_qs(url.query)
+        try:
+            if url.path in ("/", "/monitor"):
+                self.send_body(200, MONITOR_HTML.encode("utf-8"), "text/html; charset=utf-8")
+            elif url.path == "/logo.svg":
+                self.send_body(200, LOGO_SVG.encode("utf-8"), "image/svg+xml")
+            elif url.path == "/events":
+                since = int((params.get("since") or ["0"])[0] or 0)
+                request_id = (params.get("request") or [None])[0]
+                limit = min(int((params.get("limit") or ["500"])[0] or 500), 2000)
+                self.send_json(200, {
+                    "seq": JOURNAL.last_seq,
+                    "active": ACTIVE_REQUESTS.count,
+                    "events": JOURNAL.since(since, request_id, limit),
+                })
+            elif url.path == "/health":
+                self.send_json(200, server_status())
+            elif url.path == "/tools":
+                self.send_json(200, {"tools": [
+                    {"name": t.get("name"), "container": t.get("container") or "",
+                     "description": t.get("description") or ""}
+                    for t in AVAILABLE_TOOLS.values()
+                ]})
+            else:
+                self.send_json(404, {"error": "not_found", "path": url.path})
+        except ValueError:
+            self.send_json(400, {"error": "bad_request", "path": self.path})
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    def send_json(self, code: int, obj: Any):
+        self.send_body(code, json.dumps(obj, ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
+
+    def send_body(self, code: int, body: bytes, content_type: str):
+        self.send_response(code)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
+    # ---------- POST: вопрос к модели ----------
     def do_POST(self):
         start_time = time.time()
+        self.start_time = start_time
+        self.request_id = None
+        self.steps_done = 0
+        ACTIVE_REQUESTS.change(+1)
         try:
             # Чтение запроса
             content_length = int(self.headers.get('Content-Length', 0))
             if content_length == 0:
                 self.reply(400, create_error_response(
-                    "Пустое тело запроса", 
+                    "Пустое тело запроса",
                     "bad_request",
                     {"field": "body"},
                     False
                 ))
                 return
-            
+
             body = self.rfile.read(content_length)
             data = json.loads(body)
             user_text = data.get("text")
-            
+
             if not user_text:
                 self.reply(400, create_error_response(
-                    "Поле 'text' обязательно", 
+                    "Поле 'text' обязательно",
                     "bad_request",
                     {"field": "text"},
                     False
                 ))
                 return
-            
-            logger.info(f"Новый запрос: {user_text[:100]}...")
-            
+
+            # Идентификатор запроса задает клиент (форма 1С читает по нему ход выполнения
+            # до получения ответа), иначе он создается здесь.
+            self.request_id = clean_request_id(data.get("request_id")) or uuid.uuid4().hex[:12]
+            _context.request_id = self.request_id
+
+            trace("request", f"Новый запрос: {user_text[:100]}...", question=user_text)
+
             # Инициализация контекста
             messages = [{"role": "user", "content": user_text}]
             used_calls = set()
             last_tool = None
             last_call_hash = None          # хэш предыдущего вызова (имя + аргументы)
             repeat_guard = 0
-            
+
             # Сохраняем полные результаты инструментов
             tool_results = []
-            
+
             # Основной цикл обработки
             for step in range(MAX_STEPS):
                 logger.debug(f"Шаг {step + 1}/{MAX_STEPS}")
-                
+                self.steps_done = step + 1
+
                 # Строим промпт
                 prompt = build_prompt(
-                    messages, 
-                    AVAILABLE_TOOLS, 
+                    messages,
+                    AVAILABLE_TOOLS,
                     include_tools=(step == 0)
                 )
-                
+
                 # Вызываем LLM
+                trace("llm_start", f"Шаг {step + 1}: модель формирует ответ", step=step + 1,
+                      prompt_chars=len(prompt))
+                _context.llm_stats = None
+                llm_started = time.time()
                 answer = call_llm(prompt)
-                
+                stats = getattr(_context, "llm_stats", None) or {}
+
                 # Обрабатываем ответ
                 action = answer.get("action")
-                
+                trace("llm_done",
+                      f"Шаг {step + 1}: ответ модели за {time.time() - llm_started:.1f} с ({action})",
+                      step=step + 1, seconds=round(time.time() - llm_started, 1), action=action,
+                      tool=answer.get("name") if action == "call_tool" else None,
+                      num_ctx=OLLAMA_NUM_CTX, **stats)
+
                 if action == "final":
                     logger.info(f"Запрос завершен за {step + 1} шагов")
-                    
+
                     # Определяем, является ли результат ошибкой
                     result = answer.get("Result", {})
                     is_error = is_error_result(result)
-                    
+
                     if is_error:
                         error_type = result.get("error_type", "unknown")
                         details = result.get("details", {})
                         text = answer.get("Text", "Произошла ошибка")
-                        
+
                         self.reply(200, create_error_response(
                             text,
                             error_type,
@@ -834,16 +1484,18 @@ class Handler(BaseHTTPRequestHandler):
                         text = answer.get("Text", "Запрос успешно обработан")
                         if text in ["", "OK", "Готово"]:
                             text = "Запрос успешно обработан"
-                        
+
                         self.reply(200, create_success_response(text, result))
                     return
-                
+
                 elif action == "call_tool":
                     tool = answer.get("name")
                     args = answer.get("arguments", {})
-                    
+
                     # Валидация инструмента
                     if not tool or tool not in AVAILABLE_TOOLS:
+                        trace("warning", f"Модель запросила неизвестный инструмент: {tool}",
+                              logging.WARNING, tool=tool)
                         messages.append({
                             "role": "tool",
                             "content": {
@@ -852,10 +1504,12 @@ class Handler(BaseHTTPRequestHandler):
                             }
                         })
                         continue
-                    
+
                     # Проверка дубликатов
                     call_hash = hash_tool_call(tool, args)
                     if call_hash in used_calls:
+                        trace("warning", f"Повторный вызов {tool} с теми же аргументами отклонен",
+                              logging.WARNING, tool=tool, arguments=args)
                         messages.append({
                             "role": "tool",
                             "content": {
@@ -864,7 +1518,7 @@ class Handler(BaseHTTPRequestHandler):
                             }
                         })
                         continue
-                    
+
                     # Проверка зацикливания: повтором считаем только одинаковый
                     # вызов (то же имя И те же аргументы). Разные аргументы при
                     # одном инструменте - нормальный последовательный опрос.
@@ -881,29 +1535,42 @@ class Handler(BaseHTTPRequestHandler):
                             return
                     else:
                         repeat_guard = 0
-                    
+
                     # Вызов инструмента
                     last_tool = tool
                     last_call_hash = call_hash
                     used_calls.add(call_hash)
-                    
-                    logger.info(f"Вызов инструмента: {tool} с аргументами: {args}")
+
+                    trace("tool_call", f"Вызов инструмента: {tool} с аргументами: {args}",
+                          tool=tool, arguments=args,
+                          arguments_text=json.dumps(args, ensure_ascii=False),
+                          container=AVAILABLE_TOOLS[tool].get("container") or "")
+                    tool_started = time.time()
                     result = mcp_call_tool(tool, args)
-                    
+                    full_length = tool_result_length(result)
+
                     # Обрезаем слишком большие ответы, чтобы не переполнить контекст
                     result = truncate_tool_result(result)
-                    
+                    preview = tool_result_preview(result)
+                    trace("tool_result", f"Ответ инструмента {tool}: {full_length} симв.",
+                          tool=tool, seconds=round(time.time() - tool_started, 2),
+                          chars=full_length, truncated=full_length > MAX_TOOL_RESULT_CHARS,
+                          is_error=bool(result.get("isError")) if isinstance(result, dict) else False,
+                          preview=preview[:TRACE_PREVIEW_CHARS])
+
                     # Сохраняем результат
                     tool_results.append(result)
-                    
+
                     # Добавляем в историю сообщений
                     messages.append({
                         "role": "tool",
                         "content": result
                     })
-                    
+
                 else:
                     # Неизвестное действие
+                    trace("warning", f"Модель вернула неизвестное действие: {action}",
+                          logging.WARNING, action=action)
                     messages.append({
                         "role": "tool",
                         "content": {
@@ -911,7 +1578,7 @@ class Handler(BaseHTTPRequestHandler):
                             "action": action
                         }
                     })
-            
+
             # Превышено число шагов
             logger.warning(f"Превышено максимальное число шагов ({MAX_STEPS})")
             self.reply(200, create_error_response(
@@ -920,7 +1587,7 @@ class Handler(BaseHTTPRequestHandler):
                 {"max_steps": MAX_STEPS, "completed_steps": MAX_STEPS},
                 False
             ))
-            
+
         except (json.JSONDecodeError, UnicodeDecodeError) as e:
             # UnicodeDecodeError: тело запроса не в UTF-8 (например, отправлено в CP1251)
             logger.error(f"Ошибка JSON в запросе: {e}")
@@ -930,7 +1597,7 @@ class Handler(BaseHTTPRequestHandler):
                 {"error": str(e)},
                 False
             ))
-            
+
         except Exception as e:
             logger.exception(f"Неожиданная ошибка при обработке запроса: {e}")
             self.reply(500, create_error_response(
@@ -939,11 +1606,13 @@ class Handler(BaseHTTPRequestHandler):
                 {"error": str(e)},
                 False
             ))
-            
+
         finally:
             elapsed = time.time() - start_time
             logger.info(f"Запрос обработан за {elapsed:.2f} секунд")
-    
+            _context.request_id = None
+            ACTIVE_REQUESTS.change(-1)
+
     def reply(self, code, response_obj):
         """Отправляет JSON ответ в стандартном формате"""
         # Признак того, что строка статуса уже отправлена: повторно отправлять
@@ -957,20 +1626,32 @@ class Handler(BaseHTTPRequestHandler):
                     None,
                     False
                 )
-            
+
             if "Success" not in response_obj:
                 result = response_obj.get("Result", {})
                 if isinstance(result, dict) and "error_type" in result:
                     response_obj["Success"] = False
                 else:
                     response_obj["Success"] = True
-            
+
             if "Text" not in response_obj:
                 response_obj["Text"] = ""
-            
+
             if "Result" not in response_obj:
                 response_obj["Result"] = {}
-            
+
+            # Итоговое событие и ход выполнения в ответе: по ним форма 1С показывает
+            # шаги модели, даже если не успела прочитать журнал во время выполнения.
+            if self.request_id:
+                elapsed = round(time.time() - getattr(self, "start_time", time.time()), 1)
+                trace("final" if response_obj["Success"] else "error",
+                      response_obj["Text"],
+                      logging.INFO if response_obj["Success"] else logging.WARNING,
+                      success=response_obj["Success"], seconds=elapsed, steps=self.steps_done,
+                      result=response_obj["Result"])
+                response_obj["RequestId"] = self.request_id
+                response_obj["Trace"] = JOURNAL.since(0, self.request_id, JOURNAL_SIZE)
+
             body = json.dumps(response_obj, ensure_ascii=False, indent=2).encode('utf-8')
             self.send_response(code)
             status_sent = True
@@ -995,8 +1676,70 @@ class Handler(BaseHTTPRequestHandler):
                 self.wfile.write(error_body)
 
 
+class ActiveRequests:
+    """Счетчик запросов, которые сейчас обрабатываются: монитор показывает по нему состояние."""
+
+    def __init__(self):
+        self.count = 0
+        self._lock = threading.Lock()
+
+    def change(self, delta: int):
+        with self._lock:
+            self.count += delta
+
+
+ACTIVE_REQUESTS = ActiveRequests()
+AVAILABLE_TOOLS: Dict[str, Any] = {}
+STARTED_AT = time.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def clean_request_id(value: Any) -> Optional[str]:
+    """Идентификатор запроса от клиента: только латиница, цифры и дефис, до 64 символов."""
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    return value if re.fullmatch(r"[A-Za-z0-9-]{1,64}", value) else None
+
+
+def server_status() -> Dict[str, Any]:
+    return {
+        "status": "ok",
+        "model": OLLAMA_MODEL,
+        "num_ctx": OLLAMA_NUM_CTX,
+        "num_gpu": OLLAMA_NUM_GPU,
+        "mcp_url": MCP_URL,
+        "tools": len(AVAILABLE_TOOLS),
+        "active": ACTIVE_REQUESTS.count,
+        "started": STARTED_AT,
+        "address": f"{ORCHESTRATOR_HOST}:{ORCHESTRATOR_PORT}",
+    }
+
+
+def open_monitor_window(url: str):
+    """Открывает монитор отдельным окном без панелей браузера (режим приложения Edge или
+    Chrome), а если их нет - в браузере по умолчанию."""
+    candidates = [
+        shutil.which("msedge"),
+        os.path.expandvars(r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"),
+        os.path.expandvars(r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"),
+        shutil.which("chrome"),
+        os.path.expandvars(r"%ProgramFiles%\Google\Chrome\Application\chrome.exe"),
+        os.path.expandvars(r"%LocalAppData%\Google\Chrome\Application\chrome.exe"),
+    ]
+    for exe in candidates:
+        if exe and os.path.isfile(exe):
+            subprocess.Popen([exe, f"--app={url}", "--window-size=1360,860"])
+            return
+    webbrowser.open(url)
+
+
 # ================== START ==================
 if __name__ == "__main__":
+    # Ключ --monitor (или ORCHESTRATOR_MONITOR=1) открывает монитор отдельным окном после запуска.
+    open_monitor = "--monitor" in sys.argv[1:] or os.environ.get("ORCHESTRATOR_MONITOR", "") in ("1", "true", "yes")
+    monitor_host = "127.0.0.1" if ORCHESTRATOR_HOST in ("0.0.0.0", "") else ORCHESTRATOR_HOST
+    monitor_url = f"http://{monitor_host}:{ORCHESTRATOR_PORT}/monitor"
+
     print(f"🚀 LLM-Orchestrator запущен: http://{ORCHESTRATOR_HOST}:{ORCHESTRATOR_PORT}")
     print("=" * 50)
     
@@ -1008,23 +1751,26 @@ if __name__ == "__main__":
         tools = mcp_list_tools()
         if not tools:
             logger.warning("Не загружены инструменты MCP")
-            AVAILABLE_TOOLS = {}
         else:
-            AVAILABLE_TOOLS = {t["name"]: t for t in tools}
+            AVAILABLE_TOOLS.update({t["name"]: t for t in tools})
             logger.info(format_tools_by_container(tools))
         
         # Асинхронный прогрев LLM
         warmup_llm_async()
         
-        # Запуск сервера
+        # Запуск сервера. Многопоточный: монитор и форма 1С читают журнал,
+        # пока модель обрабатывает запрос.
         logger.info(f"MCP-сервер 1С: {MCP_URL}")
-        server = HTTPServer((ORCHESTRATOR_HOST, ORCHESTRATOR_PORT), Handler)
+        server = ThreadingHTTPServer((ORCHESTRATOR_HOST, ORCHESTRATOR_PORT), Handler)
+        server.daemon_threads = True
         logger.info(f"✅ Сервер готов к приему запросов: {ORCHESTRATOR_HOST}:{ORCHESTRATOR_PORT}")
+        logger.info(f"📺 Монитор: {monitor_url}")
         logger.info("⏳ LLM прогревается в фоновом режиме, первые запросы могут быть медленнее")
+        if open_monitor:
+            open_monitor_window(monitor_url)
         server.serve_forever()
         
     except KeyboardInterrupt:
         logger.info("🛑 Сервер остановлен пользователем")
     except Exception as e:
         logger.error(f"❌ Критическая ошибка при запуске сервера: {e}")
-        raise
