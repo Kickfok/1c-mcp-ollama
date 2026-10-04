@@ -84,6 +84,8 @@
 			<CommonModule>mcp_НастройкиLLM</CommonModule>
 			<CommonModule>mcp_ДоступПользователей</CommonModule>
 			<CommonModule>mcp_APIBackendОписание</CommonModule>
+			<CommonModule>mcp_ОркестраторLLMКлиент</CommonModule>
+			<CommonModule>mcp_ДиагностикаLLM</CommonModule>
 			<HTTPService>mcp_APIBackend</HTTPService>
 			<DataProcessor>mcp_УправлениеСервером</DataProcessor>
 			<DataProcessor>mcp_ИнструментДанныеОКонфигурации</DataProcessor>
