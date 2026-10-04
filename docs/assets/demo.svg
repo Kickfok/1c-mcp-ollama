@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="452" viewBox="0 0 880 452" role="img" aria-labelledby="t d">
+  <title id="t">Реальный прогон 1C MCP Ollama Bridge</title>
+  <desc id="d">Оркестратор загружает 21 инструмент из 1С, модель qwen2.5-coder:32b вызывает get_configuration_version и отвечает: версия платформы 8.3.27.2214</desc>
+  <style>
+    .mono { font-family: 'Cascadia Mono', Consolas, 'DejaVu Sans Mono', monospace; font-size: 14px; }
+    .dim { fill: #7D84B2; }
+    .txt { fill: #D7DAF5; }
+    .ok { fill: #6EE7A8; }
+    .y { fill: #FFC94D; }
+    .v { fill: #B3A6FF; }
+    .c { fill: #7DD3FC; }
+    .line { animation: show 0.35s ease-out both; }
+    @keyframes show { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+    .l1 { animation-delay: 0.2s; } .l2 { animation-delay: 0.6s; } .l3 { animation-delay: 1.0s; }
+    .l4 { animation-delay: 1.6s; } .l5 { animation-delay: 2.3s; } .l6 { animation-delay: 3.0s; }
+    .l7 { animation-delay: 3.5s; } .l8 { animation-delay: 4.1s; } .l9 { animation-delay: 4.7s; }
+    .l10 { animation-delay: 5.3s; } .l11 { animation-delay: 5.8s; }
+    .cursor { animation: blink 1s steps(1) infinite; }
+    @keyframes blink { 50% { opacity: 0; } }
+  </style>
+
+  <rect width="880" height="452" rx="14" fill="#0E1124"/>
+  <rect width="880" height="40" rx="14" fill="#191D38"/>
+  <rect y="26" width="880" height="14" fill="#191D38"/>
+  <circle cx="24" cy="20" r="6" fill="#FF6B6B"/>
+  <circle cx="44" cy="20" r="6" fill="#FFC94D"/>
+  <circle cx="64" cy="20" r="6" fill="#6EE7A8"/>
+  <text x="440" y="25" text-anchor="middle" class="mono dim">LLM_Orchestrator.py  ·  qwen2.5-coder:32b  ·  RTX 5070 12 ГБ</text>
+
+  <g class="mono">
+    <g class="line l1"><text x="24" y="74"><tspan class="dim">$ </tspan><tspan class="txt">ORCHESTRATOR_PORT=9001 python LLM_Orchestrator.py</tspan></text></g>
+    <g class="line l2"><text x="24" y="100"><tspan class="dim">16:07:00 </tspan><tspan class="txt">MCP initialize </tspan><tspan class="c">→ http://127.0.0.1:8089/mcptest/hs/mcp</tspan></text></g>
+    <g class="line l3"><text x="24" y="124"><tspan class="dim">16:07:00 </tspan><tspan class="txt">Загружены инструменты </tspan><tspan class="y">(21)</tspan><tspan class="txt"> по контейнерам:</tspan></text>
+      <text x="96" y="146"><tspan class="v">• Данные о конфигурации (5)  • Данные по продажам (10)  • Бухгалтерия (6)</tspan></text></g>
+    <g class="line l4"><text x="24" y="172"><tspan class="dim">16:07:00 </tspan><tspan class="ok">✓ Сервер готов к приему запросов: 127.0.0.1:9001</tspan></text></g>
+
+    <g class="line l5"><text x="24" y="210"><tspan class="dim">16:07:56 </tspan><tspan class="txt">Новый запрос: </tspan><tspan class="y">«Какая версия платформы 1С используется в базе?»</tspan></text></g>
+    <g class="line l6"><text x="24" y="236"><tspan class="dim">16:09:05 </tspan><tspan class="txt">LLM прогрета и готова к работе</tspan></text></g>
+    <g class="line l7"><text x="24" y="262"><tspan class="dim">16:09:33 </tspan><tspan class="v">MCP CALL </tspan><tspan class="txt">get_configuration_version </tspan><tspan class="c">{"configurationProperty": "ВерсияПлатформы"}</tspan></text></g>
+    <g class="line l8"><text x="24" y="288"><tspan class="dim">16:09:33 </tspan><tspan class="v">MCP RESPONSE </tspan><tspan class="c">{"ИмяСвойства": "ВерсияПлатформы", "ЗначениеСвойства": "8.3.27.2214"}</tspan></text></g>
+    <g class="line l9"><text x="24" y="314"><tspan class="dim">16:09:58 </tspan><tspan class="ok">Запрос завершен за 2 шагов</tspan></text></g>
+
+    <g class="line l10">
+      <rect x="24" y="336" width="832" height="78" rx="10" fill="#151A36" stroke="#2C3366"/>
+      <text x="44" y="364"><tspan class="dim">{ </tspan><tspan class="c">"Success"</tspan><tspan class="dim">: </tspan><tspan class="ok">true</tspan><tspan class="dim">,</tspan></text>
+      <text x="56" y="390"><tspan class="c">"Text"</tspan><tspan class="dim">: </tspan><tspan class="y">"Версия платформы 1С в базе: 8.3.27.2214"</tspan><tspan class="dim"> }</tspan></text>
+    </g>
+    <g class="line l11"><text x="24" y="440"><tspan class="dim">$ </tspan><tspan class="txt cursor">▌</tspan></text></g>
+  </g>
+</svg>
