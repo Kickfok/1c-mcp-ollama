@@ -78,7 +78,7 @@
 					<Name>mcp</Name>
 					<Synonym>
 						<v8:item>
-							<v8:lang>ru1</v8:lang>
+							<v8:lang>ru</v8:lang>
 							<v8:content>Mcp</v8:content>
 						</v8:item>
 					</Synonym>
@@ -91,7 +91,7 @@
 							<Name>POST</Name>
 							<Synonym>
 								<v8:item>
-									<v8:lang>ru1</v8:lang>
+									<v8:lang>ru</v8:lang>
 									<v8:content>POST</v8:content>
 								</v8:item>
 							</Synonym>
@@ -105,7 +105,7 @@
 							<Name>GET</Name>
 							<Synonym>
 								<v8:item>
-									<v8:lang>ru1</v8:lang>
+									<v8:lang>ru</v8:lang>
 									<v8:content>GET</v8:content>
 								</v8:item>
 							</Synonym>
