@@ -1,0 +1,46 @@
+name: Release
+
+# Запускается при отправке тега вида v1.2.3:
+#   git tag v1.2.3
+#   git push origin v1.2.3
+# Перед тегом соберите build/MCP_Сервер.cfe платформой 1С и обновите CHANGELOG.md:
+# в CI платформы нет, поэтому публикуется собранный файл из репозитория.
+
+on:
+  push:
+    tags: [ 'v*.*.*' ]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check sources
+        run: python tools/check_sources.py
+
+      - name: Release notes
+        run: python tools/release_notes.py "$GITHUB_REF_NAME" > release-notes.md
+
+      - name: Package orchestrator
+        run: |
+          mkdir -p dist
+          cp "build/MCP_Сервер.cfe" dist/
+          cd orchestrator && zip -j ../dist/LLM_Orchestrator.zip LLM_Orchestrator.py requirements.txt
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: 1c-mcp-ollama ${{ github.ref_name }}
+          body_path: release-notes.md
+          files: |
+            dist/MCP_Сервер.cfe
+            dist/LLM_Orchestrator.zip

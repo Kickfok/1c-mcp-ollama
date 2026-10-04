@@ -187,6 +187,10 @@ python tests/mcp_smoke.py http://localhost/<публикация>/hs/mcp
 После правки `orchestrator/LLM_Orchestrator.py` обновите макет в расширении:
 `python tools/sync_orchestrator.py`. Проверка в CI не пропустит расхождение.
 
+Релиз: соберите `build/MCP_Сервер.cfe`, поднимите версию в `src/extension/Configuration.xml`, добавьте
+раздел в `CHANGELOG.md` и отправьте тег `vX.Y.Z`. Workflow `release.yml` проверит совпадение версий и
+опубликует релиз с `MCP_Сервер.cfe` и архивом оркестратора.
+
 ### Новый инструмент
 
 Создайте в расширении обработку, включите ее в подсистему `mcp_КонтейнерыИнструментов` и реализуйте

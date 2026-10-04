@@ -17,7 +17,8 @@
 - Журнал регистрации: ошибки обработок-контейнеров пишутся событием `MCP-сервер.Контейнеры`.
 - `tests/mcp_smoke.py` - проверка опубликованного MCP-сервера; `tools/check_sources.py` - статические
   проверки исходников; `tools/sync_orchestrator.py` - синхронизация макета `LLM_Orchestrator`;
-  `tools/gen_tools_doc.py` - генерация `docs/TOOLS.md`; проверки в GitHub Actions.
+  `tools/gen_tools_doc.py` - генерация `docs/TOOLS.md`; проверки в GitHub Actions и публикация
+  релиза по тегу `vX.Y.Z`.
 - Документация: README, установка, описание инструментов, разработка инструментов.
 
 ### Изменено
