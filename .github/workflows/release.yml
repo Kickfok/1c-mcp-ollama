@@ -3,12 +3,19 @@ name: Release
 # Запускается при отправке тега вида v1.2.3:
 #   git tag v1.2.3
 #   git push origin v1.2.3
+# или вручную (Actions - Release - Run workflow) для уже существующего тега: файлы релиза
+# заменяются заново, описание обновляется.
 # Перед тегом соберите build/MCP_Сервер.cfe платформой 1С и обновите CHANGELOG.md:
 # в CI платформы нет, поэтому публикуется собранный файл из репозитория.
 
 on:
   push:
     tags: [ 'v*.*.*' ]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Существующий тег, например v1.0.0"
+        required: true
 
 permissions:
   contents: write
@@ -16,9 +23,14 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - uses: actions/setup-python@v5
         with:
@@ -28,19 +40,24 @@ jobs:
         run: python tools/check_sources.py
 
       - name: Release notes
-        run: python tools/release_notes.py "$GITHUB_REF_NAME" > release-notes.md
+        run: python tools/release_notes.py "$TAG" > release-notes.md
 
-      - name: Package orchestrator
+      # Имена файлов латиницей: GitHub удаляет кириллицу из имен файлов релиза.
+      - name: Package
         run: |
+          VERSION="${TAG#v}"
           mkdir -p dist
-          cp "build/MCP_Сервер.cfe" dist/
-          cd orchestrator && zip -j ../dist/LLM_Orchestrator.zip LLM_Orchestrator.py requirements.txt
+          cp "build/MCP_Сервер.cfe" "dist/MCP_Server-$VERSION.cfe"
+          zip -j "dist/LLM_Orchestrator-$VERSION.zip" orchestrator/LLM_Orchestrator.py orchestrator/requirements.txt
 
       - name: Publish GitHub release
-        uses: softprops/action-gh-release@v2
-        with:
-          name: 1c-mcp-ollama ${{ github.ref_name }}
-          body_path: release-notes.md
-          files: |
-            dist/MCP_Сервер.cfe
-            dist/LLM_Orchestrator.zip
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release view "$TAG" --json assets --jq '.assets[].name' | while read -r asset; do
+              gh release delete-asset "$TAG" "$asset" --yes
+            done
+            gh release edit "$TAG" --title "1c-mcp-ollama $TAG" --notes-file release-notes.md
+          else
+            gh release create "$TAG" --title "1c-mcp-ollama $TAG" --notes-file release-notes.md --verify-tag
+          fi
+          gh release upload "$TAG" dist/*

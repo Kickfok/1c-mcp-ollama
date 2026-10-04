@@ -58,9 +58,9 @@ def main() -> int:
     body = [
         "## Установка",
         "",
-        "1. Скачайте `MCP_Сервер.cfe` ниже и подключите в \"Администрирование - Расширения\".",
+        f"1. Скачайте `MCP_Server-{version}.cfe` ниже (расширение `MCP_Сервер`) и подключите в \"Администрирование - Расширения\".",
         "2. Опубликуйте HTTP-сервис `mcp_APIBackend`, явно перечислив его в `default.vrd`.",
-        "3. Для LLM-оркестратора скачайте `LLM_Orchestrator.zip`, выполните `pip install -r requirements.txt` "
+        f"3. Для LLM-оркестратора скачайте `LLM_Orchestrator-{version}.zip`, выполните `pip install -r requirements.txt` "
         "и задайте `MCP_URL`.",
         "",
         f"Подробно - [docs/INSTALL.md]({REPO}/blob/v{version}/docs/INSTALL.md).",
