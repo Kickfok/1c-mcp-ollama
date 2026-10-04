@@ -78,8 +78,7 @@ TRACE_PREVIEW_CHARS = 1200
 
 
 # ================== ЖУРНАЛ СОБЫТИЙ ==================
-# Журнал читают монитор (GET /monitor) и форма 1С (GET /events): по нему видно, какой шаг
-# выполняет модель, какие инструменты 1С она вызвала и сколько времени занял каждый шаг.
+# Журнал запросов для монитора (GET /monitor) и формы 1С (GET /events).
 class EventJournal:
     def __init__(self, size: int):
         self._events = collections.deque(maxlen=size)
@@ -117,8 +116,8 @@ class EventJournal:
 
 JOURNAL = EventJournal(JOURNAL_SIZE)
 
-# Идентификатор запроса, который обрабатывает текущий поток: по нему записи лога
-# из call_llm и mcp_call_tool попадают в журнал того запроса, к которому относятся.
+# Запрос, который обрабатывает текущий поток. Нужен, чтобы записи лога из call_llm
+# и mcp_call_tool попали в журнал своего запроса.
 _context = threading.local()
 
 
@@ -669,7 +668,7 @@ def call_llm(prompt: str) -> Dict[str, Any]:
             
             response_data = r.json()
             raw_text = response_data.get("response", "")
-            # Статистика Ollama для журнала: заполнение контекста и скорость генерации
+            # Сколько токенов занял промпт и ответ - для монитора и формы
             _context.llm_stats = {
                 "prompt_tokens": response_data.get("prompt_eval_count"),
                 "output_tokens": response_data.get("eval_count"),
@@ -862,8 +861,7 @@ def hash_tool_call(name, args):
 
 
 # ================== МОНИТОР ==================
-# Страница монитора (GET /monitor): журнал запросов в оформлении проекта, темная и светлая тема.
-# Встроена в файл, чтобы оркестратор оставался одним файлом: форма 1С выгружает его из макета.
+# Страница монитора. Хранится здесь же, потому что форма 1С выгружает оркестратор из макета одним файлом.
 LOGO_SVG = r"""<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
   <title id="title">1C MCP Ollama Bridge</title>
   <desc id="desc">Мост MCP между базой 1С и локальной языковой моделью</desc>
@@ -1115,7 +1113,7 @@ MONITOR_HTML = r"""<!doctype html>
     return Math.floor(t / 60) + " мин " + (t % 60) + " с";
   }
 
-  // Тема: сохраняется в браузере, по умолчанию темная, как в README.
+  // Выбранная тема запоминается в браузере
   function setTheme(light) {
     document.body.className = light ? "light" : "";
     $("themeBtn").textContent = light ? "☾" : "☀";
@@ -1341,7 +1339,6 @@ class Handler(BaseHTTPRequestHandler):
         """Отключаем стандартное логирование запросов от BaseHTTPRequestHandler"""
         pass
 
-    # ---------- GET: монитор, журнал событий, состояние ----------
     def do_GET(self):
         url = urlparse(self.path)
         params = parse_qs(url.query)
@@ -1385,7 +1382,6 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    # ---------- POST: вопрос к модели ----------
     def do_POST(self):
         start_time = time.time()
         self.start_time = start_time
@@ -1417,8 +1413,7 @@ class Handler(BaseHTTPRequestHandler):
                 ))
                 return
 
-            # Идентификатор запроса задает клиент (форма 1С читает по нему ход выполнения
-            # до получения ответа), иначе он создается здесь.
+            # Форма 1С передает свой идентификатор, чтобы читать ход выполнения до ответа
             self.request_id = clean_request_id(data.get("request_id")) or uuid.uuid4().hex[:12]
             _context.request_id = self.request_id
 
@@ -1640,8 +1635,7 @@ class Handler(BaseHTTPRequestHandler):
             if "Result" not in response_obj:
                 response_obj["Result"] = {}
 
-            # Итоговое событие и ход выполнения в ответе: по ним форма 1С показывает
-            # шаги модели, даже если не успела прочитать журнал во время выполнения.
+            # Ход выполнения отдаем и в ответе: форма могла не успеть прочитать журнал
             if self.request_id:
                 elapsed = round(time.time() - getattr(self, "start_time", time.time()), 1)
                 trace("final" if response_obj["Success"] else "error",
@@ -1758,8 +1752,7 @@ if __name__ == "__main__":
         # Асинхронный прогрев LLM
         warmup_llm_async()
         
-        # Запуск сервера. Многопоточный: монитор и форма 1С читают журнал,
-        # пока модель обрабатывает запрос.
+        # Многопоточный сервер: монитор и форма читают журнал, пока модель отвечает
         logger.info(f"MCP-сервер 1С: {MCP_URL}")
         server = ThreadingHTTPServer((ORCHESTRATOR_HOST, ORCHESTRATOR_PORT), Handler)
         server.daemon_threads = True
