@@ -5,8 +5,9 @@
 Проверки:
   1. Каждый XML-файл выгрузки разбирается парсером.
   2. Нет представлений с несуществующим кодом языка (например, ru1): платформа их не показывает.
-  3. Модули расширения не обращаются к общим модулям БСП и БТС: расширение должно
-     работать в любой конфигурации.
+  3. Модули расширения обращаются только к программному интерфейсу БСП: служебные модули БСП
+     (*Служебный*) не гарантируют совместимость между версиями, модулей БТС в конфигурации
+     на БСП может не быть.
   4. Макет LLM_Orchestrator совпадает с orchestrator/LLM_Orchestrator.py.
   5. Python-файлы компилируются.
 """
@@ -19,11 +20,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 EXTENSION = ROOT / "src" / "extension"
 KNOWN_LANGS = {"ru", "en"}
-# Общие модули БСП и БТС. Префикс mcp_ не совпадает с границей слова, поэтому
-# собственный модуль mcp_ОбщегоНазначения под шаблон не попадает.
-FOREIGN_MODULES = re.compile(
-    r"\b(ОбщегоНазначения|ОбщегоНазначенияКлиентСервер|ОбщегоНазначенияКлиент|"
-    r"ОбщегоНазначенияСервер|ОбщегоНазначенияБТС|СтандартныеПодсистемыСервер)\.")
+# Служебные модули БСП и модули БТС. Собственные модули расширения начинаются с mcp_
+# и под шаблон не попадают.
+MODULE_CALL = re.compile(r"\b([А-Яа-яЁё]+)\.")
+FOREIGN_PARTS = ("Служебный", "БТС")
 
 
 def check_xml(errors: list) -> int:
@@ -46,10 +46,10 @@ def check_bsl(errors: list) -> int:
     for path in files:
         for number, line in enumerate(path.read_text(encoding="utf-8-sig").splitlines(), 1):
             code = line.split("//", 1)[0]
-            match = FOREIGN_MODULES.search(code)
-            if match:
-                errors.append(f"{path.relative_to(ROOT)}:{number}: обращение к модулю "
-                              f"{match.group(1)} (БСП/БТС), расширение должно работать без них")
+            for match in MODULE_CALL.finditer(code):
+                if any(part in match.group(1) for part in FOREIGN_PARTS):
+                    errors.append(f"{path.relative_to(ROOT)}:{number}: обращение к модулю "
+                                  f"{match.group(1)}: допустим только программный интерфейс БСП")
     return len(files)
 
 

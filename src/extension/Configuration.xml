@@ -74,12 +74,16 @@
 			<Subsystem>mcp_MCPСервер</Subsystem>
 			<CommonPicture>MCP_ОсновнойРаздел</CommonPicture>
 			<Role>mcp_ОсновнаяРоль</Role>
+			<Role>mcp_ИспользованиеLLM</Role>
 			<CommonModule>mcp_ОбщегоНазначения</CommonModule>
 			<CommonModule>mcp_КонтейнерыПовтИсп</CommonModule>
 			<CommonModule>mcp_Метаданные</CommonModule>
 			<CommonModule>mcp_Выполнение</CommonModule>
 			<CommonModule>mcp_Содержимое</CommonModule>
 			<CommonModule>mcp_ОркестраторLLM</CommonModule>
+			<CommonModule>mcp_НастройкиLLM</CommonModule>
+			<CommonModule>mcp_ДоступПользователей</CommonModule>
+			<CommonModule>mcp_APIBackendОписание</CommonModule>
 			<HTTPService>mcp_APIBackend</HTTPService>
 			<DataProcessor>mcp_УправлениеСервером</DataProcessor>
 			<DataProcessor>mcp_ИнструментДанныеОКонфигурации</DataProcessor>
@@ -87,6 +91,8 @@
 			<DataProcessor>АнализКонфигурацииMCP</DataProcessor>
 			<DataProcessor>mcp_ИнструментДанныеПродаж</DataProcessor>
 			<DataProcessor>mcp_ИнструментДляБухгалтерскойРаботы</DataProcessor>
+			<InformationRegister>mcp_НастройкиLLM</InformationRegister>
+			<InformationRegister>mcp_ТокеныДоступа</InformationRegister>
 		</ChildObjects>
 	</Configuration>
 </MetaDataObject>

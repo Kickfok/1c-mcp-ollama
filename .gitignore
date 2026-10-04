@@ -20,3 +20,7 @@ venv/
 # IDE
 .vscode/
 .idea/
+
+# Конфигурация оркестратора: содержит ключи клиента и администратора
+LLM_Orchestrator.config.json
+*.config.json.tmp

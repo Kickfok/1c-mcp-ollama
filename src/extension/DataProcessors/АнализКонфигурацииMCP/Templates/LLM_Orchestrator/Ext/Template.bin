@@ -1,11 +1,16 @@
 # LLM_Orchestrator.py - HTTP-сервер, связывающий локальную LLM (Ollama) с MCP-сервером 1С.
+import argparse
 import collections
+import hmac
+import ipaddress
 import itertools
 import json
 import logging
 import os
 import re
+import secrets
 import shutil
+import ssl
 import subprocess
 import sys
 import time
@@ -14,28 +19,83 @@ import uuid
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from hashlib import sha1
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 from urllib.parse import urlparse, parse_qs
 
 import requests
 import urllib3
 
-# ================== НАСТРОЙКИ ==================
-# Значения по умолчанию можно переопределить переменными окружения с теми же именами.
-OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/generate")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5-coder:32b")
-# Адрес HTTP-сервиса mcp_APIBackend: http(s)://<сервер>/<имя публикации>/hs/mcp
-MCP_URL = os.environ.get("MCP_URL", "https://localhost/yt_mcp_test/hs/mcp")
-# Проверка TLS-сертификата публикации. По умолчанию выключена: локальные публикации
-# обычно используют самоподписанный сертификат.
-MCP_VERIFY_SSL = os.environ.get("MCP_VERIFY_SSL", "false").lower() in ("1", "true", "yes")
-# Адрес, на котором оркестратор принимает запросы. Авторизации у оркестратора нет,
-# поэтому по умолчанию он доступен только с этого компьютера.
-ORCHESTRATOR_HOST = os.environ.get("ORCHESTRATOR_HOST", "127.0.0.1")
-ORCHESTRATOR_PORT = int(os.environ.get("ORCHESTRATOR_PORT", "9000"))
+VERSION = "1.2.0"
 
-if not MCP_VERIFY_SSL:
-    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+# ================== НАСТРОЙКИ ==================
+# Порядок: значение по умолчанию, затем файл конфигурации (--config), затем переменная окружения.
+# Поле файла конфигурации -> (переменная окружения, значение по умолчанию).
+SETTINGS = {
+    "ollama_url": ("OLLAMA_URL", "http://localhost:11434/api/generate"),
+    "ollama_model": ("OLLAMA_MODEL", "qwen2.5-coder:32b"),
+    # Пусто - Ollama сама подбирает число слоев на GPU (см. OLLAMA_NUM_GPU ниже).
+    "ollama_num_gpu": ("OLLAMA_NUM_GPU", None),
+    # Адрес HTTP-сервиса mcp_APIBackend: http(s)://<сервер>/<имя публикации>/hs/mcp
+    "mcp_url": ("MCP_URL", "https://localhost/yt_mcp_test/hs/mcp"),
+    # Проверка TLS-сертификата публикации. По умолчанию выключена: локальные публикации
+    # обычно используют самоподписанный сертификат.
+    "mcp_verify_ssl": ("MCP_VERIFY_SSL", False),
+    "host": ("ORCHESTRATOR_HOST", "127.0.0.1"),
+    "port": ("ORCHESTRATOR_PORT", 9000),
+    # Ключ клиента (1С задает вопросы) и ключ администратора (монитор, журнал всех запросов).
+    "client_key": ("ORCHESTRATOR_CLIENT_KEY", ""),
+    "admin_key": ("ORCHESTRATOR_ADMIN_KEY", ""),
+    # Сертификат и закрытый ключ в формате PEM: заданы - оркестратор принимает только HTTPS.
+    "tls_cert": ("ORCHESTRATOR_TLS_CERT", ""),
+    "tls_key": ("ORCHESTRATOR_TLS_KEY", ""),
+}
+MIN_KEY_LENGTH = 32
+
+
+def setting_value(name: str, raw: Any) -> Any:
+    """Приводит значение из файла или окружения к типу настройки."""
+    default = SETTINGS[name][1]
+    if name == "ollama_num_gpu":
+        text = "" if raw is None else str(raw).strip()
+        return int(text) if text else None
+    if isinstance(default, bool):
+        return raw if isinstance(raw, bool) else str(raw).strip().lower() in ("1", "true", "yes")
+    if isinstance(default, int):
+        return int(raw)
+    return "" if raw is None else str(raw).strip()
+
+
+def read_settings(config: Dict[str, Any]) -> Dict[str, Any]:
+    values = {}
+    for name, (env_name, default) in SETTINGS.items():
+        if os.environ.get(env_name, "").strip():
+            values[name] = setting_value(name, os.environ[env_name])
+        elif name in config:
+            values[name] = setting_value(name, config[name])
+        else:
+            values[name] = default
+    return values
+
+
+def apply_settings(values: Dict[str, Any]):
+    global OLLAMA_URL, OLLAMA_MODEL, OLLAMA_NUM_GPU, MCP_URL, MCP_VERIFY_SSL
+    global ORCHESTRATOR_HOST, ORCHESTRATOR_PORT, CLIENT_KEY, ADMIN_KEY, TLS_CERT, TLS_KEY
+    OLLAMA_URL = values["ollama_url"]
+    OLLAMA_MODEL = values["ollama_model"]
+    OLLAMA_NUM_GPU = values["ollama_num_gpu"]
+    MCP_URL = values["mcp_url"]
+    MCP_VERIFY_SSL = values["mcp_verify_ssl"]
+    ORCHESTRATOR_HOST = values["host"]
+    ORCHESTRATOR_PORT = values["port"]
+    CLIENT_KEY = values["client_key"]
+    ADMIN_KEY = values["admin_key"]
+    TLS_CERT = values["tls_cert"]
+    TLS_KEY = values["tls_key"]
+    if not MCP_VERIFY_SSL:
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+
+apply_settings(read_settings({}))
 
 MAX_STEPS = 15
 LLM_TIMEOUT = 1800
@@ -49,8 +109,8 @@ LLM_RETRY_DELAY = 2
 # Число -> задать явно. Если слоев больше, чем помещается в видеопамять,
 #          runner падает с "CUDA error / out of memory".
 #          На 12 ГБ (RTX 5070) помещается около 24 слоев.
-# Переменная окружения OLLAMA_NUM_GPU задает число; пустое значение - автоподбор.
-OLLAMA_NUM_GPU = int(os.environ["OLLAMA_NUM_GPU"]) if os.environ.get("OLLAMA_NUM_GPU", "").strip() else None
+# Задается полем ollama_num_gpu файла конфигурации или переменной окружения OLLAMA_NUM_GPU;
+# пустое значение - автоподбор.
 
 # Размер контекстного окна модели.
 # 4096 стабильно грузится на 12 ГБ VRAM вместе с 32B-моделью.
@@ -86,7 +146,8 @@ class EventJournal:
         self._lock = threading.Lock()
 
     def add(self, kind: str, text: str, request_id: Optional[str] = None,
-            level: int = logging.INFO, data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+            level: int = logging.INFO, data: Optional[Dict[str, Any]] = None,
+            user: Optional[str] = None) -> Dict[str, Any]:
         now = time.time()
         with self._lock:
             self._seq += 1
@@ -95,6 +156,7 @@ class EventJournal:
                 "ts": round(now, 3),
                 "time": time.strftime("%H:%M:%S", time.localtime(now)),
                 "request": request_id,
+                "user": user,
                 "kind": kind,
                 "level": logging.getLevelName(level),
                 "text": text,
@@ -125,6 +187,10 @@ def current_request_id() -> Optional[str]:
     return getattr(_context, "request_id", None)
 
 
+def current_user() -> Optional[str]:
+    return getattr(_context, "user", None)
+
+
 class JournalLogHandler(logging.Handler):
     """Переносит записи лога в журнал событий. Записи, созданные функцией trace, пропускаются:
     они уже есть в журнале в виде событий с данными."""
@@ -133,7 +199,7 @@ class JournalLogHandler(logging.Handler):
         if getattr(record, "journaled", False):
             return
         try:
-            JOURNAL.add("log", record.getMessage(), current_request_id(), record.levelno)
+            JOURNAL.add("log", record.getMessage(), current_request_id(), record.levelno, user=current_user())
         except Exception:
             self.handleError(record)
 
@@ -144,7 +210,7 @@ logger.addHandler(JournalLogHandler())
 def trace(kind: str, text: str, level: int = logging.INFO, **data) -> Dict[str, Any]:
     """Пишет строку в консоль и событие с данными в журнал текущего запроса."""
     logger.log(level, text, extra={"journaled": True})
-    return JOURNAL.add(kind, text, current_request_id(), level, data)
+    return JOURNAL.add(kind, text, current_request_id(), level, data, current_user())
 
 
 def tool_result_preview(result: Any) -> str:
@@ -529,14 +595,25 @@ def mcp_payload(method: str, params: Dict[str, Any]) -> Dict[str, Any]:
     return {"jsonrpc": "2.0", "id": next(_mcp_request_ids), "method": method, "params": params}
 
 
-def mcp_request(payload):
+# Последняя ошибка обращения к MCP-серверу 1С: показывается в /health и диагностике.
+MCP_STATE = {"error": None, "checked": None}
+
+
+def mcp_request(payload, mcp_token: Optional[str] = None):
+    """Отправляет JSON-RPC в HTTP-сервис 1С. Токен пользователя 1С уходит заголовком X-MCP-Token:
+    по нему 1С проверяет права пользователя, задавшего вопрос."""
+    headers = {"X-MCP-Token": mcp_token} if mcp_token else None
     try:
-        r = requests.post(MCP_URL, json=payload, timeout=MCP_TIMEOUT, verify=MCP_VERIFY_SSL)
+        r = requests.post(MCP_URL, json=payload, headers=headers, timeout=MCP_TIMEOUT, verify=MCP_VERIFY_SSL)
+        MCP_STATE["checked"] = time.strftime("%Y-%m-%d %H:%M:%S")
         if r.status_code == 204 or not r.text.strip():
+            MCP_STATE["error"] = None
             return None
         r.raise_for_status()
+        MCP_STATE["error"] = None
         return r.json()
     except Exception as e:
+        MCP_STATE["error"] = str(e)[:300]
         logger.warning("Ошибка MCP запроса: %s", e)
         return {"result": {"content": [], "isError": True}}
 
@@ -551,6 +628,18 @@ def mcp_list_tools():
     if not data or "result" not in data:
         return []
     return data["result"].get("tools", [])
+
+
+def load_tools() -> int:
+    """Загружает список инструментов MCP. Вызывается при запуске и повторно, если при запуске
+    1С была недоступна."""
+    tools = mcp_list_tools()
+    if tools:
+        set_tools(tools)
+        logger.info(format_tools_by_container(tools))
+    else:
+        logger.warning("Не загружены инструменты MCP")
+    return len(tools)
 
 
 def format_tools_by_container(tools: list) -> str:
@@ -576,11 +665,16 @@ def format_tools_by_container(tools: list) -> str:
 def mcp_call_tool(name, arguments):
     payload = mcp_payload("tools/call", {"name": name, "arguments": arguments})
     logger.info(f"MCP CALL: {name} {arguments}", extra={"journaled": True})
-    data = mcp_request(payload)
-    
-    # Получаем результат
-    result = data.get("result", {"content": [], "isError": True}) if data else {"content": [], "isError": True}
-    
+    data = mcp_request(payload, getattr(_context, "mcp_token", None))
+
+    if data and isinstance(data.get("error"), dict):
+        # Отказ HTTP-сервиса (например, токен пользователя истек): текст нужен модели и пользователю
+        result = {"content": [{"type": "text", "text": str(data["error"].get("message", ""))}], "isError": True}
+    elif data:
+        result = data.get("result", {"content": [], "isError": True})
+    else:
+        result = {"content": [], "isError": True}
+
     # Нормализуем результат в единый формат
     normalized_result = normalize_mcp_result(result)
     
@@ -1039,6 +1133,15 @@ MONITOR_HTML = r"""<!doctype html>
   .cursor { animation: blink 1s steps(1) infinite; color: var(--text); }
   @keyframes blink { 50% { opacity: 0; } }
   @media (max-width: 900px) { main { grid-template-columns: 1fr; } aside { display: none; } }
+  #login { position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+    background: var(--bg); z-index: 10; padding: 16px; }
+  #login.show { display: flex; }
+  #login form { width: 100%; max-width: 420px; padding: 22px; display: flex; flex-direction: column; gap: 12px; }
+  #login h2 { margin: 0; font-size: 18px; color: var(--strong); }
+  #login p { margin: 0; color: var(--dim); }
+  #login input { font: inherit; padding: 9px 11px; border-radius: 8px; border: 1px solid var(--chipb);
+    background: var(--panel2); color: var(--text); }
+  #login .err { color: var(--err); min-height: 1.4em; }
 </style>
 </head>
 <body>
@@ -1078,6 +1181,16 @@ MONITOR_HTML = r"""<!doctype html>
     <div id="log" class="mono"></div>
   </section>
 </main>
+<div id="login">
+  <form class="card" id="loginForm">
+    <h2>Вход в монитор</h2>
+    <p>Монитор показывает вопросы всех пользователей, поэтому нужен ключ администратора
+      оркестратора (поле admin_key файла конфигурации).</p>
+    <input type="password" id="loginKey" autocomplete="off" placeholder="Ключ администратора">
+    <div class="err" id="loginError"></div>
+    <button type="submit" class="on">Войти</button>
+  </form>
+</div>
 <footer>
   <span>Событий: <b id="evCount">0</b></span>
   <span>Обновлено: <b id="updated">-</b></span>
@@ -1157,7 +1270,7 @@ MONITOR_HTML = r"""<!doctype html>
       var box = el("div", "sep");
       box.id = "req-" + ev.request;
       box.appendChild(el("div", "q", "▶ " + (d.question || ev.text)));
-      box.appendChild(el("div", "m mono", ev.time + "  ·  запрос " + ev.request));
+      box.appendChild(el("div", "m mono", ev.time + "  ·  запрос " + ev.request + (ev.user ? "  ·  " + ev.user : "")));
       logEl.appendChild(box);
       return;
     }
@@ -1234,7 +1347,7 @@ MONITOR_HTML = r"""<!doctype html>
   function track(ev) {
     if (!ev.request) return;
     var r = requests[ev.request];
-    if (!r) { r = requests[ev.request] = { id: ev.request, q: "", state: "busy", time: ev.time, steps: 0, sec: null }; order.unshift(r); }
+    if (!r) { r = requests[ev.request] = { id: ev.request, q: "", user: ev.user, state: "busy", time: ev.time, steps: 0, sec: null }; order.unshift(r); }
     if (ev.kind === "request") r.q = (ev.data && ev.data.question) || ev.text;
     if (ev.kind === "llm_done") r.steps = ev.data.step;
     if (ev.kind === "final") { r.state = "ok"; r.sec = ev.data.seconds; }
@@ -1252,6 +1365,7 @@ MONITOR_HTML = r"""<!doctype html>
         var m = el("div", "m");
         m.appendChild(span("dot " + r.state));
         m.appendChild(span("", r.time));
+        if (r.user) m.appendChild(span("", r.user));
         m.appendChild(span("", r.state === "busy" ? "выполняется, шаг " + (r.steps + 1) : sec(r.sec) + ", шагов: " + r.steps));
         item.appendChild(m);
         item.onclick = function () { var t = $("req-" + r.id); if (t) { autoScroll = false; $("autoBtn").className = ""; t.scrollIntoView({ behavior: "smooth", block: "start" }); } };
@@ -1260,14 +1374,47 @@ MONITOR_HTML = r"""<!doctype html>
     }
   }
 
-  function get(url, ok, fail) {
+  // Сессия монитора живет до закрытия вкладки; ключ администратора в браузере не хранится
+  var session = null, started = false;
+  try { session = sessionStorage.getItem("mcpMonitorSession"); } catch (e) {}
+
+  function send(method, url, body, ok, fail) {
     var x = new XMLHttpRequest();
-    x.open("GET", url, true);
+    x.open(method, url, true);
     x.timeout = 5000;
-    x.onload = function () { if (x.status === 200) { try { ok(JSON.parse(x.responseText)); } catch (e) { fail(); } } else fail(); };
-    x.onerror = fail; x.ontimeout = fail;
-    x.send();
+    if (session) x.setRequestHeader("Authorization", "Bearer " + session);
+    if (body) x.setRequestHeader("Content-Type", "application/json");
+    x.onload = function () {
+      if (x.status === 401 && url !== "/monitor/login") { showLogin(""); return; }
+      var data = null;
+      try { data = JSON.parse(x.responseText); } catch (e) {}
+      if (x.status === 200 && data) ok(data); else fail(data);
+    };
+    x.onerror = function () { fail(null); }; x.ontimeout = function () { fail(null); };
+    x.send(body ? JSON.stringify(body) : null);
   }
+  function get(url, ok, fail) { send("GET", url, null, ok, fail); }
+
+  function showLogin(message) {
+    session = null;
+    try { sessionStorage.removeItem("mcpMonitorSession"); } catch (e) {}
+    $("loginError").textContent = message || "";
+    $("login").className = "show";
+    $("loginKey").focus();
+  }
+  function login(body) {
+    send("POST", "/monitor/login", body, function (r) {
+      session = r.session;
+      try { sessionStorage.setItem("mcpMonitorSession", session); } catch (e) {}
+      $("login").className = ""; $("loginKey").value = "";
+      start();
+    }, function (r) { showLogin((r && r.message) || "Оркестратор недоступен"); });
+  }
+  $("loginForm").onsubmit = function (e) {
+    e.preventDefault();
+    var key = $("loginKey").value.trim();
+    if (key) login({ key: key });
+  };
 
   function setOnline(v, active) {
     online = v;
@@ -1324,9 +1471,22 @@ MONITOR_HTML = r"""<!doctype html>
     }, function () {});
   }
 
-  loadStatus();
-  setInterval(loadStatus, 30000);
-  poll();
+  // Ответ 401 останавливает опрос журнала; после входа он запускается заново
+  function start() {
+    if (!started) { started = true; setInterval(function () { if (session) loadStatus(); }, 30000); }
+    loadStatus();
+    poll();
+  }
+
+  var ticket = /[#&]ticket=([^&]+)/.exec(location.hash);
+  if (ticket) {
+    history.replaceState(null, "", location.pathname + location.search);
+    login({ ticket: decodeURIComponent(ticket[1]) });
+  } else if (session) {
+    start();
+  } else {
+    showLogin("");
+  }
 })();
 </script>
 </body>
@@ -1334,379 +1494,710 @@ MONITOR_HTML = r"""<!doctype html>
 
 
 # ================== HTTP SERVER ==================
-class Handler(BaseHTTPRequestHandler):
-    def log_message(self, format, *args):
-        """Отключаем стандартное логирование запросов от BaseHTTPRequestHandler"""
-        pass
-
-    def do_GET(self):
-        url = urlparse(self.path)
-        params = parse_qs(url.query)
-        try:
-            if url.path in ("/", "/monitor"):
-                self.send_body(200, MONITOR_HTML.encode("utf-8"), "text/html; charset=utf-8")
-            elif url.path == "/logo.svg":
-                self.send_body(200, LOGO_SVG.encode("utf-8"), "image/svg+xml")
-            elif url.path == "/events":
-                since = int((params.get("since") or ["0"])[0] or 0)
-                request_id = (params.get("request") or [None])[0]
-                limit = min(int((params.get("limit") or ["500"])[0] or 500), 2000)
-                self.send_json(200, {
-                    "seq": JOURNAL.last_seq,
-                    "active": ACTIVE_REQUESTS.count,
-                    "events": JOURNAL.since(since, request_id, limit),
-                })
-            elif url.path == "/health":
-                self.send_json(200, server_status())
-            elif url.path == "/tools":
-                self.send_json(200, {"tools": [
-                    {"name": t.get("name"), "container": t.get("container") or "",
-                     "description": t.get("description") or ""}
-                    for t in AVAILABLE_TOOLS.values()
-                ]})
-            else:
-                self.send_json(404, {"error": "not_found", "path": url.path})
-        except ValueError:
-            self.send_json(400, {"error": "bad_request", "path": self.path})
-        except (BrokenPipeError, ConnectionResetError):
-            pass
-
-    def send_json(self, code: int, obj: Any):
-        self.send_body(code, json.dumps(obj, ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
-
-    def send_body(self, code: int, body: bytes, content_type: str):
-        self.send_response(code)
-        self.send_header("Content-Type", content_type)
-        self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
-        self.end_headers()
-        self.wfile.write(body)
-
-    def do_POST(self):
-        start_time = time.time()
-        self.start_time = start_time
-        self.request_id = None
-        self.steps_done = 0
-        ACTIVE_REQUESTS.change(+1)
-        try:
-            # Чтение запроса
-            content_length = int(self.headers.get('Content-Length', 0))
-            if content_length == 0:
-                self.reply(400, create_error_response(
-                    "Пустое тело запроса",
-                    "bad_request",
-                    {"field": "body"},
-                    False
-                ))
-                return
-
-            body = self.rfile.read(content_length)
-            data = json.loads(body)
-            user_text = data.get("text")
-
-            if not user_text:
-                self.reply(400, create_error_response(
-                    "Поле 'text' обязательно",
-                    "bad_request",
-                    {"field": "text"},
-                    False
-                ))
-                return
-
-            # Форма 1С передает свой идентификатор, чтобы читать ход выполнения до ответа
-            self.request_id = clean_request_id(data.get("request_id")) or uuid.uuid4().hex[:12]
-            _context.request_id = self.request_id
-
-            trace("request", f"Новый запрос: {user_text[:100]}...", question=user_text)
-
-            # Инициализация контекста
-            messages = [{"role": "user", "content": user_text}]
-            used_calls = set()
-            last_tool = None
-            last_call_hash = None          # хэш предыдущего вызова (имя + аргументы)
-            repeat_guard = 0
-
-            # Сохраняем полные результаты инструментов
-            tool_results = []
-
-            # Основной цикл обработки
-            for step in range(MAX_STEPS):
-                logger.debug(f"Шаг {step + 1}/{MAX_STEPS}")
-                self.steps_done = step + 1
-
-                # Строим промпт
-                prompt = build_prompt(
-                    messages,
-                    AVAILABLE_TOOLS,
-                    include_tools=(step == 0)
-                )
-
-                # Вызываем LLM
-                trace("llm_start", f"Шаг {step + 1}: модель формирует ответ", step=step + 1,
-                      prompt_chars=len(prompt))
-                _context.llm_stats = None
-                llm_started = time.time()
-                answer = call_llm(prompt)
-                stats = getattr(_context, "llm_stats", None) or {}
-
-                # Обрабатываем ответ
-                action = answer.get("action")
-                trace("llm_done",
-                      f"Шаг {step + 1}: ответ модели за {time.time() - llm_started:.1f} с ({action})",
-                      step=step + 1, seconds=round(time.time() - llm_started, 1), action=action,
-                      tool=answer.get("name") if action == "call_tool" else None,
-                      num_ctx=OLLAMA_NUM_CTX, **stats)
-
-                if action == "final":
-                    logger.info(f"Запрос завершен за {step + 1} шагов")
-
-                    # Определяем, является ли результат ошибкой
-                    result = answer.get("Result", {})
-                    is_error = is_error_result(result)
-
-                    if is_error:
-                        error_type = result.get("error_type", "unknown")
-                        details = result.get("details", {})
-                        text = answer.get("Text", "Произошла ошибка")
-
-                        self.reply(200, create_error_response(
-                            text,
-                            error_type,
-                            details,
-                            False
-                        ))
-                    else:
-                        text = answer.get("Text", "Запрос успешно обработан")
-                        if text in ["", "OK", "Готово"]:
-                            text = "Запрос успешно обработан"
-
-                        self.reply(200, create_success_response(text, result))
-                    return
-
-                elif action == "call_tool":
-                    tool = answer.get("name")
-                    args = answer.get("arguments", {})
-
-                    # Валидация инструмента
-                    if not tool or tool not in AVAILABLE_TOOLS:
-                        trace("warning", f"Модель запросила неизвестный инструмент: {tool}",
-                              logging.WARNING, tool=tool)
-                        messages.append({
-                            "role": "tool",
-                            "content": {
-                                "error": "НЕИЗВЕСТНЫЙ_ИНСТРУМЕНТ",
-                                "доступные_инструменты": list(AVAILABLE_TOOLS.keys())
-                            }
-                        })
-                        continue
-
-                    # Проверка дубликатов
-                    call_hash = hash_tool_call(tool, args)
-                    if call_hash in used_calls:
-                        trace("warning", f"Повторный вызов {tool} с теми же аргументами отклонен",
-                              logging.WARNING, tool=tool, arguments=args)
-                        messages.append({
-                            "role": "tool",
-                            "content": {
-                                "error": "ПОВТОРНЫЙ_ВЫЗОВ",
-                                "инструмент": tool
-                            }
-                        })
-                        continue
-
-                    # Проверка зацикливания: повтором считаем только одинаковый
-                    # вызов (то же имя И те же аргументы). Разные аргументы при
-                    # одном инструменте - нормальный последовательный опрос.
-                    if last_call_hash == call_hash:
-                        repeat_guard += 1
-                        if repeat_guard >= 3:
-                            logger.warning(f"Зацикливание на инструменте: {tool}")
-                            self.reply(200, create_error_response(
-                                "LLM зациклился на инструменте",
-                                "loop_detected",
-                                {"tool": tool, "steps": step + 1},
-                                False
-                            ))
-                            return
-                    else:
-                        repeat_guard = 0
-
-                    # Вызов инструмента
-                    last_tool = tool
-                    last_call_hash = call_hash
-                    used_calls.add(call_hash)
-
-                    trace("tool_call", f"Вызов инструмента: {tool} с аргументами: {args}",
-                          tool=tool, arguments=args,
-                          arguments_text=json.dumps(args, ensure_ascii=False),
-                          container=AVAILABLE_TOOLS[tool].get("container") or "")
-                    tool_started = time.time()
-                    result = mcp_call_tool(tool, args)
-                    full_length = tool_result_length(result)
-
-                    # Обрезаем слишком большие ответы, чтобы не переполнить контекст
-                    result = truncate_tool_result(result)
-                    preview = tool_result_preview(result)
-                    trace("tool_result", f"Ответ инструмента {tool}: {full_length} симв.",
-                          tool=tool, seconds=round(time.time() - tool_started, 2),
-                          chars=full_length, truncated=full_length > MAX_TOOL_RESULT_CHARS,
-                          is_error=bool(result.get("isError")) if isinstance(result, dict) else False,
-                          preview=preview[:TRACE_PREVIEW_CHARS])
-
-                    # Сохраняем результат
-                    tool_results.append(result)
-
-                    # Добавляем в историю сообщений
-                    messages.append({
-                        "role": "tool",
-                        "content": result
-                    })
-
-                else:
-                    # Неизвестное действие
-                    trace("warning", f"Модель вернула неизвестное действие: {action}",
-                          logging.WARNING, action=action)
-                    messages.append({
-                        "role": "tool",
-                        "content": {
-                            "error": "НЕИЗВЕСТНОЕ_ДЕЙСТВИЕ",
-                            "action": action
-                        }
-                    })
-
-            # Превышено число шагов
-            logger.warning(f"Превышено максимальное число шагов ({MAX_STEPS})")
-            self.reply(200, create_error_response(
-                "Превышено число шагов LLM",
-                "max_steps_exceeded",
-                {"max_steps": MAX_STEPS, "completed_steps": MAX_STEPS},
-                False
-            ))
-
-        except (json.JSONDecodeError, UnicodeDecodeError) as e:
-            # UnicodeDecodeError: тело запроса не в UTF-8 (например, отправлено в CP1251)
-            logger.error(f"Ошибка JSON в запросе: {e}")
-            self.reply(400, create_error_response(
-                "Невалидный JSON в запросе (ожидается UTF-8)",
-                "invalid_json",
-                {"error": str(e)},
-                False
-            ))
-
-        except Exception as e:
-            logger.exception(f"Неожиданная ошибка при обработке запроса: {e}")
-            self.reply(500, create_error_response(
-                f"Внутренняя ошибка сервера: {str(e)[:100]}",
-                "server_error",
-                {"error": str(e)},
-                False
-            ))
-
-        finally:
-            elapsed = time.time() - start_time
-            logger.info(f"Запрос обработан за {elapsed:.2f} секунд")
-            _context.request_id = None
-            ACTIVE_REQUESTS.change(-1)
-
-    def reply(self, code, response_obj):
-        """Отправляет JSON ответ в стандартном формате"""
-        # Признак того, что строка статуса уже отправлена: повторно отправлять
-        # ответ с ошибкой в этом случае нельзя.
-        status_sent = False
-        try:
-            if not isinstance(response_obj, dict):
-                response_obj = create_error_response(
-                    "Неверный формат ответа",
-                    "invalid_response_format",
-                    None,
-                    False
-                )
-
-            if "Success" not in response_obj:
-                result = response_obj.get("Result", {})
-                if isinstance(result, dict) and "error_type" in result:
-                    response_obj["Success"] = False
-                else:
-                    response_obj["Success"] = True
-
-            if "Text" not in response_obj:
-                response_obj["Text"] = ""
-
-            if "Result" not in response_obj:
-                response_obj["Result"] = {}
-
-            # Ход выполнения отдаем и в ответе: форма могла не успеть прочитать журнал
-            if self.request_id:
-                elapsed = round(time.time() - getattr(self, "start_time", time.time()), 1)
-                trace("final" if response_obj["Success"] else "error",
-                      response_obj["Text"],
-                      logging.INFO if response_obj["Success"] else logging.WARNING,
-                      success=response_obj["Success"], seconds=elapsed, steps=self.steps_done,
-                      result=response_obj["Result"])
-                response_obj["RequestId"] = self.request_id
-                response_obj["Trace"] = JOURNAL.since(0, self.request_id, JOURNAL_SIZE)
-
-            body = json.dumps(response_obj, ensure_ascii=False, indent=2).encode('utf-8')
-            self.send_response(code)
-            status_sent = True
-            self.send_header('Content-Type', 'application/json; charset=utf-8')
-            self.send_header('Content-Length', str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
-        except Exception as e:
-            logger.error(f"Ошибка при отправке ответа: {e}")
-            if not status_sent:
-                error_response = create_error_response(
-                    f"Ошибка при отправке ответа: {str(e)[:100]}",
-                    "response_error",
-                    None,
-                    False
-                )
-                error_body = json.dumps(error_response, ensure_ascii=False).encode('utf-8')
-                self.send_response(500)
-                self.send_header('Content-Type', 'application/json; charset=utf-8')
-                self.send_header('Content-Length', str(len(error_body)))
-                self.end_headers()
-                self.wfile.write(error_body)
+# ================== ЗАПРОСЫ ==================
+MAX_BODY_BYTES = 1_000_000
+MAX_QUESTION_CHARS = 20000
+# Сколько вопросов обрабатывается одновременно. Ollama отвечает по очереди, поэтому больше
+# не нужно, а лимит защищает от переполнения потоками.
+MAX_ACTIVE_REQUESTS = 4
+# Сколько завершенных запросов хранится для GET /requests/{id}.
+KEEP_FINISHED_REQUESTS = 200
 
 
-class ActiveRequests:
-    """Счетчик запросов, которые сейчас обрабатываются: монитор показывает по нему состояние."""
+REQUESTS_PATH = "/requests/"
+REQUEST_NOT_FOUND = "Запрос не найден"
 
+
+class RequestRejected(Exception):
+    """Запрос нельзя принять: код HTTP и тело ответа."""
+
+    def __init__(self, code: int, error: str, message: str):
+        super().__init__(message)
+        self.code = code
+        self.body = {"error": error, "message": message}
+
+
+class QuestionRequest:
+    """Вопрос пользователя 1С и состояние его обработки."""
+
+    def __init__(self, request_id: str, text: str, user: Optional[str], mcp_token: Optional[str]):
+        self.id = request_id
+        self.text = text
+        self.user = user
+        # Токен пользователя 1С нужен только на время обработки и наружу не отдается.
+        self.mcp_token = mcp_token
+        self.status = "running"
+        self.created = time.time()
+        self.finished: Optional[float] = None
+        self.steps = 0
+        self.response: Optional[Dict[str, Any]] = None
+        self.cancel = threading.Event()
+
+    def public(self, with_response: bool) -> Dict[str, Any]:
+        state = {
+            "request_id": self.id,
+            "user": self.user,
+            "status": self.status,
+            "created": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.created)),
+            "seconds": round((self.finished or time.time()) - self.created, 1),
+            "steps": self.steps,
+            "question": self.text[:300],
+        }
+        if with_response:
+            state["response"] = self.response
+        return state
+
+
+class RequestRegistry:
     def __init__(self):
-        self.count = 0
+        self._items: "collections.OrderedDict[str, QuestionRequest]" = collections.OrderedDict()
         self._lock = threading.Lock()
 
-    def change(self, delta: int):
+    @property
+    def active(self) -> int:
         with self._lock:
-            self.count += delta
+            return sum(1 for r in self._items.values() if r.status == "running")
+
+    def create(self, text: str, user: Optional[str], mcp_token: Optional[str],
+               request_id: Optional[str] = None) -> QuestionRequest:
+        with self._lock:
+            if sum(1 for r in self._items.values() if r.status == "running") >= MAX_ACTIVE_REQUESTS:
+                raise RequestRejected(429, "busy", f"Оркестратор уже обрабатывает {MAX_ACTIVE_REQUESTS} вопроса, "
+                                                   "повторите позже")
+            request_id = request_id or uuid.uuid4().hex
+            if request_id in self._items:
+                raise RequestRejected(409, "duplicate_request_id", "Запрос с таким идентификатором уже есть")
+            rec = QuestionRequest(request_id, text, user, mcp_token)
+            self._items[request_id] = rec
+            finished = [k for k, r in self._items.items() if r.status != "running"]
+            for k in finished[:max(0, len(finished) - KEEP_FINISHED_REQUESTS)]:
+                del self._items[k]
+            return rec
+
+    def get(self, request_id: Optional[str]) -> Optional[QuestionRequest]:
+        with self._lock:
+            return self._items.get(request_id) if request_id else None
+
+    def snapshot(self) -> list:
+        with self._lock:
+            return list(self._items.values())
 
 
-ACTIVE_REQUESTS = ActiveRequests()
+REQUESTS = RequestRegistry()
 AVAILABLE_TOOLS: Dict[str, Any] = {}
 STARTED_AT = time.strftime("%Y-%m-%d %H:%M:%S")
 
 
 def clean_request_id(value: Any) -> Optional[str]:
-    """Идентификатор запроса от клиента: только латиница, цифры и дефис, до 64 символов."""
+    """Идентификатор запроса от клиента: латиница, цифры и дефис, от 16 до 64 символов.
+    Короткий идентификатор можно подобрать и прочитать чужой журнал, поэтому он не принимается."""
     if not isinstance(value, str):
         return None
     value = value.strip()
-    return value if re.fullmatch(r"[A-Za-z0-9-]{1,64}", value) else None
+    return value if re.fullmatch(r"[A-Za-z0-9-]{16,64}", value) else None
 
 
-def server_status() -> Dict[str, Any]:
+def clean_user(value: Any) -> Optional[str]:
+    """Имя пользователя 1С для журнала: без управляющих символов, до 100 символов."""
+    if not isinstance(value, str):
+        return None
+    value = re.sub(r"[\x00-\x1f\x7f]", " ", value).strip()
+    return value[:100] or None
+
+
+def clean_mcp_token(value: Any) -> Optional[str]:
+    if value in (None, ""):
+        return None
+    if not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9_-]{16,200}", value.strip()):
+        raise RequestRejected(400, "bad_request", "Поле mcp_token имеет неверный формат")
+    return value.strip()
+
+
+def new_request(data: Dict[str, Any]) -> QuestionRequest:
+    """Проверяет тело вопроса и регистрирует запрос."""
+    text = data.get("text")
+    if not isinstance(text, str) or not text.strip():
+        raise RequestRejected(400, "bad_request", "Поле 'text' обязательно")
+    if len(text) > MAX_QUESTION_CHARS:
+        raise RequestRejected(400, "bad_request", f"Вопрос длиннее {MAX_QUESTION_CHARS} символов")
+    return REQUESTS.create(text, clean_user(data.get("user")), clean_mcp_token(data.get("mcp_token")),
+                           clean_request_id(data.get("request_id")))
+
+
+class ToolDialog:
+    """История сообщений модели по одному вопросу и защита от повторных вызовов инструментов."""
+
+    def __init__(self, text: str):
+        self.messages = [{"role": "user", "content": text}]
+        self.used_calls = set()
+        self.last_call_hash = None          # хэш предыдущего вызова (имя + аргументы)
+        self.repeat_guard = 0
+
+    def reply(self, content: Any):
+        self.messages.append({"role": "tool", "content": content})
+
+    def call_tool(self, answer: Dict[str, Any], step: int) -> Optional[Tuple[int, Dict[str, Any]]]:
+        """Вызывает инструмент, который запросила модель, и кладет результат в историю.
+        Возвращает ответ, если обработку вопроса нужно прервать (модель зациклилась)."""
+        tool = answer.get("name")
+        args = answer.get("arguments", {})
+
+        if not tool or tool not in AVAILABLE_TOOLS:
+            trace("warning", f"Модель запросила неизвестный инструмент: {tool}", logging.WARNING, tool=tool)
+            self.reply({"error": "НЕИЗВЕСТНЫЙ_ИНСТРУМЕНТ", "доступные_инструменты": list(AVAILABLE_TOOLS.keys())})
+            return None
+
+        call_hash = hash_tool_call(tool, args)
+        if call_hash in self.used_calls:
+            trace("warning", f"Повторный вызов {tool} с теми же аргументами отклонен",
+                  logging.WARNING, tool=tool, arguments=args)
+            self.reply({"error": "ПОВТОРНЫЙ_ВЫЗОВ", "инструмент": tool})
+            return None
+
+        # Повтором считаем только одинаковый вызов (то же имя И те же аргументы).
+        # Разные аргументы при одном инструменте - нормальный последовательный опрос.
+        self.repeat_guard = self.repeat_guard + 1 if self.last_call_hash == call_hash else 0
+        if self.repeat_guard >= 3:
+            logger.warning(f"Зацикливание на инструменте: {tool}")
+            return 200, create_error_response("LLM зациклился на инструменте", "loop_detected",
+                                              {"tool": tool, "steps": step}, False)
+        self.last_call_hash = call_hash
+        self.used_calls.add(call_hash)
+
+        trace("tool_call", f"Вызов инструмента: {tool} с аргументами: {args}",
+              tool=tool, arguments=args,
+              arguments_text=json.dumps(args, ensure_ascii=False),
+              container=AVAILABLE_TOOLS[tool].get("container") or "")
+        tool_started = time.time()
+        result = mcp_call_tool(tool, args)
+        full_length = tool_result_length(result)
+
+        # Обрезаем слишком большие ответы, чтобы не переполнить контекст
+        result = truncate_tool_result(result)
+        trace("tool_result", f"Ответ инструмента {tool}: {full_length} симв.",
+              tool=tool, seconds=round(time.time() - tool_started, 2),
+              chars=full_length, truncated=full_length > MAX_TOOL_RESULT_CHARS,
+              is_error=bool(result.get("isError")) if isinstance(result, dict) else False,
+              preview=tool_result_preview(result)[:TRACE_PREVIEW_CHARS])
+        self.reply(result)
+        return None
+
+
+def final_answer(answer: Dict[str, Any]) -> Dict[str, Any]:
+    """Итоговый ответ модели в формате Success/Text/Result."""
+    result = answer.get("Result", {})
+    if is_error_result(result):
+        return create_error_response(answer.get("Text", "Произошла ошибка"), result.get("error_type", "unknown"),
+                                     result.get("details", {}), False)
+    text = answer.get("Text", "Запрос успешно обработан")
+    if text in ["", "OK", "Готово"]:
+        text = "Запрос успешно обработан"
+    return create_success_response(text, result)
+
+
+def answer_question(rec: QuestionRequest) -> Tuple[int, Dict[str, Any]]:
+    """Цикл модель - инструменты по одному вопросу. Возвращает код HTTP и ответ."""
+    dialog = ToolDialog(rec.text)
+
+    for step in range(1, MAX_STEPS + 1):
+        if rec.cancel.is_set():
+            return 200, create_error_response("Запрос отменен", "cancelled", {"steps": step - 1}, False)
+        rec.steps = step
+
+        prompt = build_prompt(dialog.messages, AVAILABLE_TOOLS, include_tools=(step == 1))
+        trace("llm_start", f"Шаг {step}: модель формирует ответ", step=step, prompt_chars=len(prompt))
+        _context.llm_stats = None
+        llm_started = time.time()
+        answer = call_llm(prompt)
+        stats = getattr(_context, "llm_stats", None) or {}
+
+        action = answer.get("action")
+        trace("llm_done", f"Шаг {step}: ответ модели за {time.time() - llm_started:.1f} с ({action})",
+              step=step, seconds=round(time.time() - llm_started, 1), action=action,
+              tool=answer.get("name") if action == "call_tool" else None,
+              num_ctx=OLLAMA_NUM_CTX, **stats)
+
+        if action == "final":
+            logger.info(f"Запрос завершен за {step} шагов")
+            return 200, final_answer(answer)
+        if action == "call_tool":
+            stop = dialog.call_tool(answer, step)
+            if stop:
+                return stop
+            continue
+
+        trace("warning", f"Модель вернула неизвестное действие: {action}", logging.WARNING, action=action)
+        dialog.reply({"error": "НЕИЗВЕСТНОЕ_ДЕЙСТВИЕ", "action": action})
+
+    logger.warning(f"Превышено максимальное число шагов ({MAX_STEPS})")
+    return 200, create_error_response("Превышено число шагов LLM", "max_steps_exceeded",
+                                      {"max_steps": MAX_STEPS, "completed_steps": MAX_STEPS}, False)
+
+
+def finish_request(rec: QuestionRequest, response_obj: Any) -> Dict[str, Any]:
+    """Приводит ответ к формату Success/Text/Result, пишет итоговое событие и закрывает запрос."""
+    if not isinstance(response_obj, dict):
+        response_obj = create_error_response("Неверный формат ответа", "invalid_response_format", None, False)
+    if "Success" not in response_obj:
+        result = response_obj.get("Result", {})
+        response_obj["Success"] = not (isinstance(result, dict) and "error_type" in result)
+    response_obj.setdefault("Text", "")
+    response_obj.setdefault("Result", {})
+
+    elapsed = round(time.time() - rec.created, 1)
+    trace("final" if response_obj["Success"] else "error", response_obj["Text"],
+          logging.INFO if response_obj["Success"] else logging.WARNING,
+          success=response_obj["Success"], seconds=elapsed, steps=rec.steps, result=response_obj["Result"])
+    response_obj["RequestId"] = rec.id
+
+    result = response_obj["Result"]
+    cancelled = isinstance(result, dict) and result.get("error_type") == "cancelled"
+    rec.response = response_obj
+    if response_obj["Success"]:
+        rec.status = "done"
+    elif cancelled:
+        rec.status = "cancelled"
+    else:
+        rec.status = "error"
+    rec.finished = time.time()
+    rec.mcp_token = None
+    return response_obj
+
+
+def process_request(rec: QuestionRequest) -> Tuple[int, Dict[str, Any]]:
+    """Обрабатывает вопрос в текущем потоке: журнал, токен 1С и пользователь берутся из запроса."""
+    _context.request_id = rec.id
+    _context.user = rec.user
+    _context.mcp_token = rec.mcp_token
+    code = 200
+    try:
+        try:
+            trace("request", f"Новый запрос: {rec.text[:100]}...", question=rec.text)
+            if not AVAILABLE_TOOLS:
+                load_tools()
+            code, response_obj = answer_question(rec)
+        except Exception as e:
+            logger.exception(f"Неожиданная ошибка при обработке запроса: {e}")
+            code, response_obj = 500, create_error_response(f"Внутренняя ошибка сервера: {str(e)[:100]}",
+                                                            "server_error", {"error": str(e)}, False)
+        response_obj = finish_request(rec, response_obj)
+        logger.info(f"Запрос обработан за {time.time() - rec.created:.2f} секунд")
+        return code, response_obj
+    finally:
+        _context.request_id = None
+        _context.user = None
+        _context.mcp_token = None
+
+
+def start_request(rec: QuestionRequest):
+    threading.Thread(target=process_request, args=(rec,), name=f"request-{rec.id[:8]}", daemon=True).start()
+
+
+# ================== ДОСТУП ==================
+def key_matches(value: str, expected: str) -> bool:
+    return bool(expected) and hmac.compare_digest(value.encode("utf-8"), expected.encode("utf-8"))
+
+
+class AuthGuard:
+    """Ограничивает подбор ключа: после LIMIT неудачных попыток за WINDOW секунд адрес получает 429."""
+    WINDOW = 300
+    LIMIT = 30
+
+    def __init__(self):
+        self._fails: Dict[str, collections.deque] = {}
+        self._lock = threading.Lock()
+
+    def _recent(self, ip: str) -> collections.deque:
+        fails = self._fails.setdefault(ip, collections.deque())
+        while fails and fails[0] < time.time() - self.WINDOW:
+            fails.popleft()
+        return fails
+
+    def blocked(self, ip: str) -> bool:
+        with self._lock:
+            return len(self._recent(ip)) >= self.LIMIT
+
+    def failed(self, ip: str):
+        with self._lock:
+            self._recent(ip).append(time.time())
+
+
+class MonitorSessions:
+    """Сессии монитора. Вход по ключу администратора или по одноразовому билету, который
+    оркестратор передает окну монитора при запуске с --monitor. Ключ администратора
+    в браузере не хранится: страница держит только сессию."""
+    TTL = 12 * 3600
+    TICKET_TTL = 120
+
+    def __init__(self):
+        self._sessions: Dict[str, float] = {}
+        self._tickets: Dict[str, float] = {}
+        self._lock = threading.Lock()
+
+    def issue(self) -> str:
+        token = "mon_" + secrets.token_hex(32)
+        with self._lock:
+            now = time.time()
+            self._sessions = {k: v for k, v in self._sessions.items() if v > now}
+            self._sessions[token] = now + self.TTL
+        return token
+
+    def valid(self, token: str) -> bool:
+        with self._lock:
+            expires = self._sessions.get(token)
+        return expires is not None and expires > time.time()
+
+    def issue_ticket(self) -> str:
+        ticket = secrets.token_urlsafe(32)
+        with self._lock:
+            self._tickets[ticket] = time.time() + self.TICKET_TTL
+        return ticket
+
+    def redeem_ticket(self, ticket: str) -> bool:
+        with self._lock:
+            expires = self._tickets.pop(ticket, None)
+        return expires is not None and expires > time.time()
+
+
+AUTH_GUARD = AuthGuard()
+MONITOR_SESSIONS = MonitorSessions()
+
+
+# ================== СОСТОЯНИЕ ==================
+def model_listed(names: set) -> bool:
+    return OLLAMA_MODEL in names or (":" not in OLLAMA_MODEL and f"{OLLAMA_MODEL}:latest" in names)
+
+
+def ollama_status() -> Dict[str, Any]:
+    """Доступна ли Ollama, скачана ли модель и загружена ли она в память."""
+    parsed = urlparse(OLLAMA_URL)
+    base = f"{parsed.scheme}://{parsed.netloc}"
+    status = {"url": base, "model": OLLAMA_MODEL, "available": False,
+              "model_present": False, "model_loaded": False, "error": None}
+    try:
+        tags = requests.get(base + "/api/tags", timeout=3)
+        tags.raise_for_status()
+        status["available"] = True
+        status["model_present"] = model_listed({m.get("name") for m in tags.json().get("models", [])})
+        ps = requests.get(base + "/api/ps", timeout=3)
+        ps.raise_for_status()
+        status["model_loaded"] = model_listed({m.get("name") for m in ps.json().get("models", [])})
+    except Exception as e:
+        status["error"] = str(e)[:200]
+    return status
+
+
+def server_status(role: str) -> Dict[str, Any]:
     return {
         "status": "ok",
+        "version": VERSION,
+        "role": role,
         "model": OLLAMA_MODEL,
         "num_ctx": OLLAMA_NUM_CTX,
         "num_gpu": OLLAMA_NUM_GPU,
         "mcp_url": MCP_URL,
+        "mcp_error": MCP_STATE["error"],
         "tools": len(AVAILABLE_TOOLS),
-        "active": ACTIVE_REQUESTS.count,
+        "active": REQUESTS.active,
         "started": STARTED_AT,
         "address": f"{ORCHESTRATOR_HOST}:{ORCHESTRATOR_PORT}",
+        "tls": bool(TLS_CERT),
+        "ollama": ollama_status(),
     }
+
+
+def run_diagnostics(mcp_token: Optional[str]) -> Dict[str, Any]:
+    """Проверки для мастера настройки 1С: Ollama, связь с MCP и сквозной вызов инструмента
+    с токеном пользователя."""
+    report: Dict[str, Any] = {"version": VERSION, "ollama": ollama_status()}
+
+    started = time.time()
+    tools = mcp_list_tools()
+    if tools:
+        set_tools(tools)
+    report["mcp"] = {"ok": bool(tools), "tools": len(tools), "error": MCP_STATE["error"],
+                     "seconds": round(time.time() - started, 2)}
+
+    if mcp_token:
+        check = {"tool": "get_configuration_version", "ok": False, "text": None}
+        if check["tool"] in AVAILABLE_TOOLS:
+            data = mcp_request(mcp_payload("tools/call", {"name": check["tool"],
+                                                          "arguments": {"configurationProperty": "КраткаяИнформация"}}),
+                               mcp_token)
+            if data and isinstance(data.get("error"), dict):
+                check["text"] = str(data["error"].get("message", ""))
+            elif data and isinstance(data.get("result"), dict):
+                result = data["result"]
+                check["ok"] = not result.get("isError")
+                check["text"] = tool_result_preview(result)[:300]
+            else:
+                check["text"] = MCP_STATE["error"] or "HTTP-сервис 1С не ответил"
+        else:
+            check["text"] = "У MCP-сервера нет инструмента get_configuration_version"
+        report["tool_call"] = check
+    return report
+
+
+# ================== HTTP ==================
+class Handler(BaseHTTPRequestHandler):
+    server_version = "LLM-Orchestrator"
+    sys_version = ""
+    # Таймаут операций с сокетом: медленный клиент не держит поток бесконечно.
+    timeout = 60
+
+    def log_message(self, format, *args):
+        """Отключаем стандартное логирование запросов от BaseHTTPRequestHandler"""
+        pass
+
+    def setup(self):
+        super().setup()
+        if isinstance(self.connection, ssl.SSLSocket):
+            self.connection.do_handshake()
+
+    # ---------- ответы ----------
+    def send_json(self, code: int, obj: Any, headers: Optional[Dict[str, str]] = None):
+        self.send_body(code, json.dumps(obj, ensure_ascii=False).encode("utf-8"),
+                       "application/json; charset=utf-8", headers)
+
+    def send_body(self, code: int, body: bytes, content_type: str, headers: Optional[Dict[str, str]] = None):
+        self.send_response(code)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        for name, value in (headers or {}).items():
+            self.send_header(name, value)
+        self.end_headers()
+        self.wfile.write(body)
+
+    # ---------- доступ ----------
+    def presented_key(self) -> str:
+        auth = self.headers.get("Authorization", "")
+        return auth[7:].strip() if auth[:7].lower() == "bearer " else ""
+
+    def role(self) -> Optional[str]:
+        key = self.presented_key()
+        if not key:
+            return None
+        if key_matches(key, ADMIN_KEY) or MONITOR_SESSIONS.valid(key):
+            return "admin"
+        if key_matches(key, CLIENT_KEY):
+            return "client"
+        return None
+
+    def authorize(self, admin: bool = False) -> Optional[str]:
+        """Роль по ключу из заголовка Authorization: Bearer. Нет доступа - отправляет ответ и
+        возвращает None."""
+        ip = self.client_address[0]
+        if AUTH_GUARD.blocked(ip):
+            self.send_json(429, {"error": "too_many_attempts", "message": "Слишком много неверных ключей, "
+                                                                          "повторите через несколько минут"})
+            return None
+        role = self.role()
+        if role is None:
+            AUTH_GUARD.failed(ip)
+            self.send_json(401, {"error": "unauthorized",
+                                 "message": "Нужен ключ оркестратора: заголовок Authorization: Bearer <ключ>"},
+                           {"WWW-Authenticate": 'Bearer realm="LLM-Orchestrator"'})
+            return None
+        if admin and role != "admin":
+            self.send_json(403, {"error": "forbidden", "message": "Нужен ключ администратора оркестратора"})
+            return None
+        return role
+
+    def read_json(self) -> Dict[str, Any]:
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+        except ValueError:
+            raise RequestRejected(400, "bad_request", "Неверный Content-Length")
+        if length <= 0:
+            raise RequestRejected(400, "bad_request", "Пустое тело запроса")
+        if length > MAX_BODY_BYTES:
+            raise RequestRejected(413, "too_large", f"Тело запроса больше {MAX_BODY_BYTES} байт")
+        try:
+            data = json.loads(self.rfile.read(length))
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            # UnicodeDecodeError: тело запроса не в UTF-8 (например, отправлено в CP1251)
+            raise RequestRejected(400, "invalid_json", f"Невалидный JSON в запросе (ожидается UTF-8): {e}")
+        if not isinstance(data, dict):
+            raise RequestRejected(400, "invalid_json", "Ожидается JSON-объект")
+        return data
+
+    # ---------- маршруты ----------
+    def do_GET(self):
+        url = urlparse(self.path)
+        routes = {
+            "/": self.get_monitor,
+            "/monitor": self.get_monitor,
+            "/logo.svg": self.get_logo,
+            "/health": self.get_health,
+            "/events": self.get_events,
+            "/tools": self.get_tools,
+            "/requests": self.get_requests,
+        }
+        try:
+            handler = routes.get(url.path)
+            if handler:
+                handler(parse_qs(url.query))
+            elif url.path.startswith(REQUESTS_PATH):
+                self.get_request(url.path[len(REQUESTS_PATH):])
+            else:
+                self.send_json(404, {"error": "not_found", "path": url.path})
+        except ValueError:
+            self.send_json(400, {"error": "bad_request", "path": url.path})
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    def do_POST(self):
+        url = urlparse(self.path)
+        routes = {
+            "/": self.post_question,
+            "/requests": self.post_request,
+            "/monitor/login": self.monitor_login,
+            "/diagnostics": self.post_diagnostics,
+        }
+        try:
+            handler = routes.get(url.path)
+            if handler:
+                handler()
+            elif url.path.startswith(REQUESTS_PATH) and url.path.endswith("/cancel"):
+                self.post_cancel(url.path[len(REQUESTS_PATH):-len("/cancel")])
+            else:
+                self.send_json(404, {"error": "not_found", "path": url.path})
+        except RequestRejected as e:
+            self.send_json(e.code, e.body)
+        except ValueError:
+            self.send_json(400, {"error": "bad_request", "path": url.path})
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    def send_request_not_found(self):
+        self.send_json(404, {"error": "not_found", "message": REQUEST_NOT_FOUND})
+
+    def get_monitor(self, params):
+        self.send_body(200, MONITOR_HTML.encode("utf-8"), "text/html; charset=utf-8", {"X-Frame-Options": "DENY"})
+
+    def get_logo(self, params):
+        self.send_body(200, LOGO_SVG.encode("utf-8"), "image/svg+xml")
+
+    def get_health(self, params):
+        # Без ключа - только признак, что оркестратор запущен
+        role = None
+        if self.presented_key():
+            role = self.role()
+            if role is None:
+                AUTH_GUARD.failed(self.client_address[0])
+        self.send_json(200, server_status(role) if role else {"status": "ok"})
+
+    def get_tools(self, params):
+        if self.authorize():
+            self.send_json(200, {"tools": [
+                {"name": t.get("name"), "container": t.get("container") or "",
+                 "description": t.get("description") or ""}
+                for t in AVAILABLE_TOOLS.values()
+            ]})
+
+    def get_requests(self, params):
+        if self.authorize(admin=True):
+            self.send_json(200, {"requests": [r.public(False) for r in reversed(REQUESTS.snapshot())]})
+
+    def get_request(self, request_id: str):
+        if not self.authorize():
+            return
+        rec = REQUESTS.get(request_id)
+        if rec is None:
+            self.send_request_not_found()
+        else:
+            self.send_json(200, rec.public(True))
+
+    def get_events(self, params: Dict[str, list]):
+        """Журнал событий. Ключ клиента читает только события своего запроса (идентификатор
+        обязателен), ключ администратора - весь журнал."""
+        role = self.authorize()
+        if not role:
+            return
+        since = int((params.get("since") or ["0"])[0] or 0)
+        request_id = (params.get("request") or [None])[0]
+        limit = min(int((params.get("limit") or ["500"])[0] or 500), 2000)
+        if role != "admin" and not request_id:
+            self.send_json(403, {"error": "forbidden",
+                                 "message": "Ключ клиента читает только журнал своего запроса: укажите request"})
+            return
+        if role != "admin" and REQUESTS.get(request_id) is None:
+            self.send_request_not_found()
+            return
+        self.send_json(200, {
+            "seq": JOURNAL.last_seq,
+            "active": REQUESTS.active,
+            "events": JOURNAL.since(since, request_id, limit),
+        })
+
+    def post_request(self):
+        if self.authorize():
+            rec = new_request(self.read_json())
+            start_request(rec)
+            self.send_json(202, rec.public(False), {"Location": REQUESTS_PATH + rec.id})
+
+    def post_cancel(self, request_id: str):
+        if not self.authorize():
+            return
+        rec = REQUESTS.get(request_id)
+        if rec is None:
+            self.send_request_not_found()
+            return
+        rec.cancel.set()
+        self.send_json(200, rec.public(False))
+
+    def post_diagnostics(self):
+        if self.authorize():
+            data = self.read_json() if int(self.headers.get("Content-Length", 0) or 0) else {}
+            self.send_json(200, run_diagnostics(clean_mcp_token(data.get("mcp_token"))))
+
+    def post_question(self):
+        """Синхронный вариант: ответ приходит, когда модель закончила. Ход выполнения клиент читает
+        через /events?request=<свой request_id>."""
+        if not self.authorize():
+            return
+        rec = new_request(self.read_json())
+        code, response_obj = process_request(rec)
+        response_obj = dict(response_obj)
+        response_obj["Trace"] = JOURNAL.since(0, rec.id, JOURNAL_SIZE)
+        self.send_body(code, json.dumps(response_obj, ensure_ascii=False, indent=2).encode("utf-8"),
+                       "application/json; charset=utf-8")
+
+    def monitor_login(self):
+        ip = self.client_address[0]
+        if AUTH_GUARD.blocked(ip):
+            self.send_json(429, {"error": "too_many_attempts", "message": "Слишком много неверных попыток входа"})
+            return
+        data = self.read_json()
+        key, ticket = data.get("key"), data.get("ticket")
+        allowed = ((isinstance(key, str) and key_matches(key.strip(), ADMIN_KEY))
+                   or (isinstance(ticket, str) and MONITOR_SESSIONS.redeem_ticket(ticket)))
+        if not allowed:
+            AUTH_GUARD.failed(ip)
+            self.send_json(401, {"error": "unauthorized", "message": "Неверный ключ администратора"})
+            return
+        self.send_json(200, {"session": MONITOR_SESSIONS.issue(), "ttl": MonitorSessions.TTL})
+
+
+class OrchestratorServer(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def handle_error(self, request, client_address):
+        # Обрыв соединения и неудачное TLS-рукопожатие - не ошибка оркестратора
+        error = sys.exc_info()[1]
+        # OSError покрывает ssl.SSLError, ConnectionError и TimeoutError
+        if isinstance(error, OSError):
+            logger.debug("Соединение %s прервано: %s", client_address, error)
+            return
+        super().handle_error(request, client_address)
+
+
+def set_tools(tools: list):
+    """Подменяет список инструментов целиком: идущие запросы дочитывают прежний словарь."""
+    global AVAILABLE_TOOLS
+    AVAILABLE_TOOLS = {t["name"]: t for t in tools}
 
 
 def open_monitor_window(url: str):
@@ -1727,43 +2218,153 @@ def open_monitor_window(url: str):
     webbrowser.open(url)
 
 
-# ================== START ==================
-if __name__ == "__main__":
-    # Ключ --monitor (или ORCHESTRATOR_MONITOR=1) открывает монитор отдельным окном после запуска.
-    open_monitor = "--monitor" in sys.argv[1:] or os.environ.get("ORCHESTRATOR_MONITOR", "") in ("1", "true", "yes")
-    monitor_host = "127.0.0.1" if ORCHESTRATOR_HOST in ("0.0.0.0", "") else ORCHESTRATOR_HOST
-    monitor_url = f"http://{monitor_host}:{ORCHESTRATOR_PORT}/monitor"
+# ================== ЗАПУСК ==================
+class ConfigError(Exception):
+    pass
 
-    print(f"🚀 LLM-Orchestrator запущен: http://{ORCHESTRATOR_HOST}:{ORCHESTRATOR_PORT}")
-    print("=" * 50)
-    
+
+def default_config_path() -> str:
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "LLM_Orchestrator.config.json")
+
+
+def load_config(path: str) -> Dict[str, Any]:
+    if not os.path.isfile(path):
+        return {}
     try:
-        # Инициализация MCP
+        # utf-8-sig: файл, записанный из 1С, может начинаться с метки порядка байтов
+        with open(path, encoding="utf-8-sig") as f:
+            config = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        raise ConfigError(f"Не удалось прочитать файл конфигурации {path}: {e}")
+    if not isinstance(config, dict):
+        raise ConfigError(f"Файл конфигурации {path} должен содержать JSON-объект")
+    unknown = sorted(set(config) - set(SETTINGS))
+    if unknown:
+        logger.warning("Неизвестные поля файла конфигурации %s: %s", path, ", ".join(unknown))
+    return config
+
+
+def save_config(path: str, config: Dict[str, Any]):
+    temp_path = path + ".tmp"
+    with open(temp_path, "w", encoding="utf-8") as f:
+        json.dump(config, f, ensure_ascii=False, indent=2)
+    if os.name != "nt":
+        os.chmod(temp_path, 0o600)
+    os.replace(temp_path, path)
+
+
+def generate_missing_keys(path: str, config: Dict[str, Any]) -> list:
+    """Создает недостающие ключи и сохраняет их в файл конфигурации. Ключи печатаются в консоль
+    один раз и в журнал событий не попадают."""
+    values = read_settings(config)
+    missing = [name for name in ("client_key", "admin_key") if not values[name]]
+    if not missing:
+        return []
+    for name in missing:
+        config[name] = secrets.token_hex(32)
+    try:
+        save_config(path, config)
+        where = f"записаны в файл конфигурации {path}"
+    except OSError as e:
+        where = f"НЕ сохранены ({e}): действуют до остановки оркестратора"
+    print(f"Созданы ключи оркестратора, {where}:")
+    for name in missing:
+        title = "ключ клиента (1С)" if name == "client_key" else "ключ администратора (монитор)"
+        print(f"  {title}: {config[name]}")
+    return missing
+
+
+def is_loopback(host: str) -> bool:
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return host.lower() == "localhost"
+
+
+def configure(config_path: str):
+    config = load_config(config_path)
+    generate_missing_keys(config_path, config)
+    try:
+        apply_settings(read_settings(config))
+    except ValueError as e:
+        raise ConfigError(f"Неверное значение настройки: {e}")
+    if not CLIENT_KEY or not ADMIN_KEY:
+        raise ConfigError("Не заданы ключи клиента и администратора: без них оркестратор не запускается")
+    for name, value in (("client_key", CLIENT_KEY), ("admin_key", ADMIN_KEY)):
+        if len(value) < MIN_KEY_LENGTH:
+            raise ConfigError(f"Ключ {name} короче {MIN_KEY_LENGTH} символов")
+    if TLS_KEY and not TLS_CERT:
+        raise ConfigError("Задан закрытый ключ TLS без сертификата (tls_cert / ORCHESTRATOR_TLS_CERT)")
+
+
+def tls_context() -> ssl.SSLContext:
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    try:
+        context.load_cert_chain(TLS_CERT, TLS_KEY or None)
+    except OSError as e:  # ssl.SSLError - подкласс OSError
+        raise ConfigError(f"Не удалось загрузить сертификат TLS {TLS_CERT}: {e}")
+    return context
+
+
+def main(argv: list) -> int:
+    parser = argparse.ArgumentParser(description="LLM-оркестратор: Ollama и MCP-сервер 1С")
+    parser.add_argument("--config", default=os.environ.get("ORCHESTRATOR_CONFIG") or default_config_path(),
+                        help="файл конфигурации JSON; недостающие ключи создаются и записываются в него")
+    # Ключ --monitor (или ORCHESTRATOR_MONITOR=1) открывает монитор отдельным окном после запуска.
+    parser.add_argument("--monitor", action="store_true", help="открыть монитор после запуска")
+    args = parser.parse_args(argv)
+    open_monitor = args.monitor or os.environ.get("ORCHESTRATOR_MONITOR", "") in ("1", "true", "yes")
+
+    try:
+        configure(args.config)
+        context = tls_context() if TLS_CERT else None
+    except ConfigError as e:
+        print(f"Оркестратор не запущен: {e}", file=sys.stderr)
+        return 2
+
+    scheme = "https" if context else "http"
+    monitor_host = "127.0.0.1" if ORCHESTRATOR_HOST in ("0.0.0.0", "", "::") else ORCHESTRATOR_HOST
+    monitor_url = f"{scheme}://{monitor_host}:{ORCHESTRATOR_PORT}/monitor"
+
+    print(f"🚀 LLM-Orchestrator {VERSION} запущен: {scheme}://{ORCHESTRATOR_HOST}:{ORCHESTRATOR_PORT}")
+    print("=" * 50)
+
+    try:
+        server = OrchestratorServer((ORCHESTRATOR_HOST, ORCHESTRATOR_PORT), Handler)
+        if context:
+            server.socket = context.wrap_socket(server.socket, server_side=True, do_handshake_on_connect=False)
+        elif not is_loopback(ORCHESTRATOR_HOST):
+            logger.warning("Оркестратор слушает сетевой адрес без TLS: ключ и вопросы идут открытым текстом. "
+                           "Задайте tls_cert и tls_key.")
+
+        logger.info(f"Файл конфигурации: {args.config}")
         mcp_initialize()
-        
-        # Загрузка инструментов
         tools = mcp_list_tools()
-        if not tools:
-            logger.warning("Не загружены инструменты MCP")
-        else:
-            AVAILABLE_TOOLS.update({t["name"]: t for t in tools})
+        if tools:
+            set_tools(tools)
             logger.info(format_tools_by_container(tools))
-        
-        # Асинхронный прогрев LLM
+        else:
+            logger.warning("Не загружены инструменты MCP: повторная попытка будет при первом вопросе")
+
         warmup_llm_async()
-        
-        # Многопоточный сервер: монитор и форма читают журнал, пока модель отвечает
+
         logger.info(f"MCP-сервер 1С: {MCP_URL}")
-        server = ThreadingHTTPServer((ORCHESTRATOR_HOST, ORCHESTRATOR_PORT), Handler)
-        server.daemon_threads = True
         logger.info(f"✅ Сервер готов к приему запросов: {ORCHESTRATOR_HOST}:{ORCHESTRATOR_PORT}")
-        logger.info(f"📺 Монитор: {monitor_url}")
+        logger.info(f"📺 Монитор: {monitor_url} (вход по ключу администратора)")
         logger.info("⏳ LLM прогревается в фоновом режиме, первые запросы могут быть медленнее")
         if open_monitor:
-            open_monitor_window(monitor_url)
+            # Одноразовый билет входа во фрагменте адреса: на сервер фрагмент не уходит,
+            # страница обменивает его на сессию и убирает из адреса.
+            open_monitor_window(f"{monitor_url}#ticket={MONITOR_SESSIONS.issue_ticket()}")
         server.serve_forever()
-        
     except KeyboardInterrupt:
         logger.info("🛑 Сервер остановлен пользователем")
-    except Exception as e:
-        logger.error(f"❌ Критическая ошибка при запуске сервера: {e}")
+    except OSError as e:
+        logger.error(f"❌ Не удалось запустить сервер на {ORCHESTRATOR_HOST}:{ORCHESTRATOR_PORT}: {e}")
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
