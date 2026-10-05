@@ -4,7 +4,8 @@
 
 Строки-продолжения пунктов списка (с отступом в два пробела) склеиваются с пунктом:
 в описании релиза на GitHub одиночный перенос строки отображается как разрыв.
-Перед публикацией проверяет, что версия совпадает с версией расширения в Configuration.xml.
+Перед публикацией проверяет, что версия (без суффикса пре-релиза, например -beta) совпадает с версией
+расширения в Configuration.xml.
 """
 import re
 import sys
@@ -53,15 +54,18 @@ def main() -> int:
         sys.exit(__doc__)
     sys.stdout.reconfigure(encoding="utf-8")
     version = sys.argv[1].lstrip("v")
-    if extension_version() != version:
+    if extension_version() != version.split("-")[0]:
         sys.exit(f"Версия расширения в Configuration.xml ({extension_version()}) не совпадает с {version}")
     body = [
         "## Установка",
         "",
-        f"1. Скачайте `MCP_Server-{version}.cfe` ниже (расширение `MCP_Сервер`) и подключите в \"Администрирование - Расширения\".",
-        "2. Опубликуйте HTTP-сервис `mcp_APIBackend`, явно перечислив его в `default.vrd`.",
+        f"1. Скачайте `MCP_Server-{version}.cfe` ниже (расширение `MCP_Сервер`), подключите в \"Администрирование - Расширения\" "
+        "и снимите безопасный режим. Нужна конфигурация на БСП 3.1+.",
+        "2. Опубликуйте HTTP-сервис `mcp_APIBackend`, явно перечислив его в `default.vrd`, под техническим пользователем "
+        "с ролью `mcp_ОсновнаяРоль`.",
         f"3. Для LLM-оркестратора скачайте `LLM_Orchestrator-{version}.zip`, выполните `pip install -r requirements.txt` "
-        "и задайте `MCP_URL`.",
+        "и запустите `python LLM_Orchestrator.py --config LLM_Orchestrator.config.json`: при первом запуске он создаст ключи.",
+        "4. В 1С откройте \"Анализ конфигурации MCP\" - \"Настройки\": адрес оркестратора, `client_key`, \"Записать и проверить\".",
         "",
         f"Подробно - [docs/INSTALL.md]({REPO}/blob/v{version}/docs/INSTALL.md).",
         "",

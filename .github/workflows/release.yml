@@ -50,14 +50,16 @@ jobs:
           cp "build/MCP_Сервер.cfe" "dist/MCP_Server-$VERSION.cfe"
           zip -j "dist/LLM_Orchestrator-$VERSION.zip" orchestrator/LLM_Orchestrator.py orchestrator/requirements.txt
 
+      # Тег с суффиксом (v1.2.0-beta) - пре-релиз: он не становится последним релизом
       - name: Publish GitHub release
         run: |
+          if [[ "$TAG" == *-* ]]; then PRERELEASE=true; LATEST=false; else PRERELEASE=false; LATEST=true; fi
           if gh release view "$TAG" > /dev/null 2>&1; then
             gh release view "$TAG" --json assets --jq '.assets[].name' | while read -r asset; do
               gh release delete-asset "$TAG" "$asset" --yes
             done
-            gh release edit "$TAG" --title "1c-mcp-ollama $TAG" --notes-file release-notes.md
+            gh release edit "$TAG" --title "1c-mcp-ollama $TAG" --notes-file release-notes.md --prerelease="$PRERELEASE"
           else
-            gh release create "$TAG" --title "1c-mcp-ollama $TAG" --notes-file release-notes.md --verify-tag
+            gh release create "$TAG" --title "1c-mcp-ollama $TAG" --notes-file release-notes.md --verify-tag               --prerelease="$PRERELEASE" --latest="$LATEST"
           fi
           gh release upload "$TAG" dist/*
