@@ -1,0 +1,809 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<Form xmlns="http://v8.1c.ru/8.3/xcf/logform" xmlns:app="http://v8.1c.ru/8.2/managed-application/core" xmlns:cfg="http://v8.1c.ru/8.1/data/enterprise/current-config" xmlns:dcscor="http://v8.1c.ru/8.1/data-composition-system/core" xmlns:dcssch="http://v8.1c.ru/8.1/data-composition-system/schema" xmlns:dcsset="http://v8.1c.ru/8.1/data-composition-system/settings" xmlns:ent="http://v8.1c.ru/8.1/data/enterprise" xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform" xmlns:style="http://v8.1c.ru/8.1/data/ui/style" xmlns:sys="http://v8.1c.ru/8.1/data/ui/fonts/system" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:web="http://v8.1c.ru/8.1/data/ui/colors/web" xmlns:win="http://v8.1c.ru/8.1/data/ui/colors/windows" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.20">
+	<Title>
+		<v8:item>
+			<v8:lang>ru</v8:lang>
+			<v8:content>Настройки подключения к LLM</v8:content>
+		</v8:item>
+	</Title>
+	<AutoTitle>false</AutoTitle>
+	<AutoCommandBar name="ФормаКоманднаяПанель" id="-1"/>
+	<Events>
+		<Event name="OnCreateAtServer">ПриСозданииНаСервере</Event>
+	</Events>
+	<ChildItems>
+		<Pages name="Страницы" id="1">
+			<PagesRepresentation>TabsOnTop</PagesRepresentation>
+			<ExtendedTooltip name="СтраницыРасширеннаяПодсказка" id="2"/>
+			<ChildItems>
+				<Page name="СтраницаОркестратор" id="3">
+					<Title>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Оркестратор</v8:content>
+						</v8:item>
+					</Title>
+					<ExtendedTooltip name="СтраницаОркестраторРасширеннаяПодсказка" id="4"/>
+					<ChildItems>
+						<LabelDecoration name="ПояснениеОркестратор" id="5">
+							<Title formatted="false">
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Серверный оркестратор (LLM_Orchestrator.py) работает рядом с сервером 1С; вопросы пользователей уходят к нему с сервера. Адрес и ключ берутся из файла конфигурации оркестратора: host, port и client_key.</v8:content>
+								</v8:item>
+							</Title>
+							<Width>100</Width>
+							<ContextMenu name="ПояснениеОркестраторКонтекстноеМеню" id="6"/>
+							<ExtendedTooltip name="ПояснениеОркестраторРасширеннаяПодсказка" id="7"/>
+						</LabelDecoration>
+						<InputField name="АдресОркестратора" id="8">
+							<DataPath>АдресОркестратора</DataPath>
+							<Title>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Адрес оркестратора</v8:content>
+								</v8:item>
+							</Title>
+							<HorizontalStretch>true</HorizontalStretch>
+							<InputHint>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>https://сервер:9000</v8:content>
+								</v8:item>
+							</InputHint>
+							<ContextMenu name="АдресОркестратораКонтекстноеМеню" id="9"/>
+							<ExtendedTooltip name="АдресОркестратораРасширеннаяПодсказка" id="10"/>
+						</InputField>
+						<CheckBoxField name="ПроверятьСертификат" id="11">
+							<DataPath>ПроверятьСертификат</DataPath>
+							<Title>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Проверять сертификат HTTPS</v8:content>
+								</v8:item>
+							</Title>
+							<ContextMenu name="ПроверятьСертификатКонтекстноеМеню" id="12"/>
+							<ExtendedTooltip name="ПроверятьСертификатРасширеннаяПодсказка" id="13"/>
+						</CheckBoxField>
+						<InputField name="ТаймаутОтвета" id="14">
+							<DataPath>ТаймаутОтвета</DataPath>
+							<Title>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Ожидать ответа модели, секунд</v8:content>
+								</v8:item>
+							</Title>
+							<ContextMenu name="ТаймаутОтветаКонтекстноеМеню" id="15"/>
+							<ExtendedTooltip name="ТаймаутОтветаРасширеннаяПодсказка" id="16"/>
+						</InputField>
+						<UsualGroup name="ГруппаКлюч" id="17">
+							<Group>Horizontal</Group>
+							<ExtendedTooltip name="ГруппаКлючРасширеннаяПодсказка" id="18"/>
+							<ChildItems>
+								<InputField name="КлючОркестратора" id="19">
+									<DataPath>КлючОркестратора</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Ключ (client_key)</v8:content>
+										</v8:item>
+									</Title>
+									<PasswordMode>true</PasswordMode>
+									<HorizontalStretch>true</HorizontalStretch>
+									<InputHint>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>оставьте пустым, чтобы не менять</v8:content>
+										</v8:item>
+									</InputHint>
+									<ContextMenu name="КлючОркестратораКонтекстноеМеню" id="20"/>
+									<ExtendedTooltip name="КлючОркестратораРасширеннаяПодсказка" id="21"/>
+								</InputField>
+								<LabelDecoration name="СостояниеКлюча" id="22">
+									<Title formatted="false">
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Ключ не записан</v8:content>
+										</v8:item>
+									</Title>
+									<ContextMenu name="СостояниеКлючаКонтекстноеМеню" id="23"/>
+									<ExtendedTooltip name="СостояниеКлючаРасширеннаяПодсказка" id="24"/>
+								</LabelDecoration>
+							</ChildItems>
+						</UsualGroup>
+					</ChildItems>
+				</Page>
+				<Page name="СтраницаДоступ" id="25">
+					<Title>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Доступ к MCP</v8:content>
+						</v8:item>
+					</Title>
+					<ExtendedTooltip name="СтраницаДоступРасширеннаяПодсказка" id="26"/>
+					<ChildItems>
+						<LabelDecoration name="ПояснениеДоступ" id="27">
+							<Title formatted="false">
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Инструменты MCP проверяют права пользователя, задавшего вопрос, по его токену. Без токена права проверяются по пользователю публикации HTTP-сервиса.</v8:content>
+								</v8:item>
+							</Title>
+							<Width>100</Width>
+							<ContextMenu name="ПояснениеДоступКонтекстноеМеню" id="28"/>
+							<ExtendedTooltip name="ПояснениеДоступРасширеннаяПодсказка" id="29"/>
+						</LabelDecoration>
+						<InputField name="АдресПубликацииMCP" id="30">
+							<DataPath>АдресПубликацииMCP</DataPath>
+							<Title>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Адрес публикации MCP</v8:content>
+								</v8:item>
+							</Title>
+							<HorizontalStretch>true</HorizontalStretch>
+							<InputHint>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>https://сервер/база/hs/mcp - для локальных оркестраторов пользователей</v8:content>
+								</v8:item>
+							</InputHint>
+							<ContextMenu name="АдресПубликацииMCPКонтекстноеМеню" id="31"/>
+							<ExtendedTooltip name="АдресПубликацииMCPРасширеннаяПодсказка" id="32"/>
+						</InputField>
+						<CheckBoxField name="ДоступКИнструментамБезТокена" id="33">
+							<DataPath>ДоступКИнструментамБезТокена</DataPath>
+							<Title>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Разрешить вызов инструментов без токена</v8:content>
+								</v8:item>
+							</Title>
+							<ContextMenu name="ДоступКИнструментамБезТокенаКонтекстноеМеню" id="34"/>
+							<ExtendedTooltip name="ДоступКИнструментамБезТокенаРасширеннаяПодсказка" id="35"/>
+						</CheckBoxField>
+						<InputField name="СрокДействияТокенаЗапроса" id="36">
+							<DataPath>СрокДействияТокенаЗапроса</DataPath>
+							<Title>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Срок токена вопроса, минут</v8:content>
+								</v8:item>
+							</Title>
+							<ContextMenu name="СрокДействияТокенаЗапросаКонтекстноеМеню" id="37"/>
+							<ExtendedTooltip name="СрокДействияТокенаЗапросаРасширеннаяПодсказка" id="38"/>
+						</InputField>
+					</ChildItems>
+				</Page>
+				<Page name="СтраницаПользователи" id="39">
+					<Title>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Локальный режим</v8:content>
+						</v8:item>
+					</Title>
+					<ExtendedTooltip name="СтраницаПользователиРасширеннаяПодсказка" id="40"/>
+					<ChildItems>
+						<LabelDecoration name="ПояснениеПользователи" id="41">
+							<Title formatted="false">
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Этим пользователям разрешено запускать Ollama и оркестратор на своем компьютере. Включает режим сам пользователь в личных настройках.</v8:content>
+								</v8:item>
+							</Title>
+							<Width>100</Width>
+							<ContextMenu name="ПояснениеПользователиКонтекстноеМеню" id="42"/>
+							<ExtendedTooltip name="ПояснениеПользователиРасширеннаяПодсказка" id="43"/>
+						</LabelDecoration>
+						<UsualGroup name="ГруппаКнопкиПользователей" id="44">
+							<Group>Horizontal</Group>
+							<ExtendedTooltip name="ГруппаКнопкиПользователейРасширеннаяПодсказка" id="45"/>
+							<ChildItems>
+								<Button name="РазрешитьЛокальныйРежим" id="46">
+									<CommandName>Form.Command.РазрешитьЛокальныйРежим</CommandName>
+									<ExtendedTooltip name="РазрешитьЛокальныйРежимРасширеннаяПодсказка" id="47"/>
+								</Button>
+								<Button name="ЗапретитьЛокальныйРежим" id="48">
+									<CommandName>Form.Command.ЗапретитьЛокальныйРежим</CommandName>
+									<ExtendedTooltip name="ЗапретитьЛокальныйРежимРасширеннаяПодсказка" id="49"/>
+								</Button>
+							</ChildItems>
+						</UsualGroup>
+						<Table name="ЛокальныеПользователи" id="50">
+							<DataPath>ЛокальныеПользователи</DataPath>
+							<ReadOnly>true</ReadOnly>
+							<HeightInTableRows>8</HeightInTableRows>
+							<CommandBarLocation>None</CommandBarLocation>
+							<SearchStringLocation>None</SearchStringLocation>
+							<ContextMenu name="ЛокальныеПользователиКонтекстноеМеню" id="51"/>
+							<AutoCommandBar name="ЛокальныеПользователиКоманднаяПанель" id="52"/>
+							<SearchStringAddition name="ЛокальныеПользователиСтрокаПоиска" id="53"/>
+							<ViewStatusAddition name="ЛокальныеПользователиСостояниеПросмотра" id="54"/>
+							<SearchControlAddition name="ЛокальныеПользователиУправлениеПоиском" id="55"/>
+							<ChildItems>
+								<InputField name="ЛокальныеПользователиПользователь" id="56">
+									<DataPath>ЛокальныеПользователи.Пользователь</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Пользователь</v8:content>
+										</v8:item>
+									</Title>
+									<ReadOnly>true</ReadOnly>
+									<ContextMenu name="ЛокальныеПользователиПользовательКонтекстноеМеню" id="57"/>
+									<ExtendedTooltip name="ЛокальныеПользователиПользовательРасширеннаяПодсказка" id="58"/>
+								</InputField>
+								<CheckBoxField name="ЛокальныеПользователиЛокальныйРежим" id="59">
+									<DataPath>ЛокальныеПользователи.ЛокальныйРежим</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Включил</v8:content>
+										</v8:item>
+									</Title>
+									<ReadOnly>true</ReadOnly>
+									<ContextMenu name="ЛокальныеПользователиЛокальныйРежимКонтекстноеМеню" id="60"/>
+									<ExtendedTooltip name="ЛокальныеПользователиЛокальныйРежимРасширеннаяПодсказка" id="61"/>
+								</CheckBoxField>
+							</ChildItems>
+						</Table>
+					</ChildItems>
+				</Page>
+				<Page name="СтраницаТокены" id="62">
+					<Title>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Персональные токены</v8:content>
+						</v8:item>
+					</Title>
+					<ExtendedTooltip name="СтраницаТокеныРасширеннаяПодсказка" id="63"/>
+					<ChildItems>
+						<LabelDecoration name="ПояснениеТокены" id="64">
+							<Title formatted="false">
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Персональный токен подключает внешний MCP-клиент (Cursor, Claude Desktop): заголовок X-MCP-Token. Права проверяются по выбранному пользователю. Токен показывается один раз.</v8:content>
+								</v8:item>
+							</Title>
+							<Width>100</Width>
+							<ContextMenu name="ПояснениеТокеныКонтекстноеМеню" id="65"/>
+							<ExtendedTooltip name="ПояснениеТокеныРасширеннаяПодсказка" id="66"/>
+						</LabelDecoration>
+						<Table name="ПерсональныеТокены" id="67">
+							<DataPath>ПерсональныеТокены</DataPath>
+							<HeightInTableRows>6</HeightInTableRows>
+							<CommandBarLocation>None</CommandBarLocation>
+							<SearchStringLocation>None</SearchStringLocation>
+							<ContextMenu name="ПерсональныеТокеныКонтекстноеМеню" id="68"/>
+							<AutoCommandBar name="ПерсональныеТокеныКоманднаяПанель" id="69"/>
+							<SearchStringAddition name="ПерсональныеТокеныСтрокаПоиска" id="70"/>
+							<ViewStatusAddition name="ПерсональныеТокеныСостояниеПросмотра" id="71"/>
+							<SearchControlAddition name="ПерсональныеТокеныУправлениеПоиском" id="72"/>
+							<ChildItems>
+								<InputField name="ПерсональныеТокеныИмяПользователя" id="73">
+									<DataPath>ПерсональныеТокены.ИмяПользователя</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Пользователь</v8:content>
+										</v8:item>
+									</Title>
+									<ReadOnly>true</ReadOnly>
+									<ContextMenu name="ПерсональныеТокеныИмяПользователяКонтекстноеМеню" id="74"/>
+									<ExtendedTooltip name="ПерсональныеТокеныИмяПользователяРасширеннаяПодсказка" id="75"/>
+								</InputField>
+								<InputField name="ПерсональныеТокеныОписание" id="76">
+									<DataPath>ПерсональныеТокены.Описание</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Описание</v8:content>
+										</v8:item>
+									</Title>
+									<ReadOnly>true</ReadOnly>
+									<ContextMenu name="ПерсональныеТокеныОписаниеКонтекстноеМеню" id="77"/>
+									<ExtendedTooltip name="ПерсональныеТокеныОписаниеРасширеннаяПодсказка" id="78"/>
+								</InputField>
+								<InputField name="ПерсональныеТокеныСрокДействия" id="79">
+									<DataPath>ПерсональныеТокены.СрокДействия</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Действует до</v8:content>
+										</v8:item>
+									</Title>
+									<ReadOnly>true</ReadOnly>
+									<ContextMenu name="ПерсональныеТокеныСрокДействияКонтекстноеМеню" id="80"/>
+									<ExtendedTooltip name="ПерсональныеТокеныСрокДействияРасширеннаяПодсказка" id="81"/>
+								</InputField>
+								<InputField name="ПерсональныеТокеныСоздан" id="82">
+									<DataPath>ПерсональныеТокены.Создан</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Создан</v8:content>
+										</v8:item>
+									</Title>
+									<ReadOnly>true</ReadOnly>
+									<ContextMenu name="ПерсональныеТокеныСозданКонтекстноеМеню" id="83"/>
+									<ExtendedTooltip name="ПерсональныеТокеныСозданРасширеннаяПодсказка" id="84"/>
+								</InputField>
+							</ChildItems>
+						</Table>
+						<Button name="ОтозватьТокен" id="85">
+							<CommandName>Form.Command.ОтозватьТокен</CommandName>
+							<ExtendedTooltip name="ОтозватьТокенРасширеннаяПодсказка" id="86"/>
+						</Button>
+						<UsualGroup name="ГруппаНовыйТокен" id="87">
+							<Title>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Новый токен</v8:content>
+								</v8:item>
+							</Title>
+							<Group>Vertical</Group>
+							<ExtendedTooltip name="ГруппаНовыйТокенРасширеннаяПодсказка" id="88"/>
+							<ChildItems>
+								<InputField name="НовыйТокенПользователь" id="89">
+									<DataPath>НовыйТокенПользователь</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Пользователь</v8:content>
+										</v8:item>
+									</Title>
+									<HorizontalStretch>true</HorizontalStretch>
+									<ContextMenu name="НовыйТокенПользовательКонтекстноеМеню" id="90"/>
+									<ExtendedTooltip name="НовыйТокенПользовательРасширеннаяПодсказка" id="91"/>
+									<Events>
+										<Event name="StartChoice">НовыйТокенПользовательНачалоВыбора</Event>
+									</Events>
+								</InputField>
+								<InputField name="НовыйТокенСрок" id="92">
+									<DataPath>НовыйТокенСрок</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Действует до</v8:content>
+										</v8:item>
+									</Title>
+									<ContextMenu name="НовыйТокенСрокКонтекстноеМеню" id="93"/>
+									<ExtendedTooltip name="НовыйТокенСрокРасширеннаяПодсказка" id="94"/>
+								</InputField>
+								<InputField name="НовыйТокенОписание" id="95">
+									<DataPath>НовыйТокенОписание</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Описание</v8:content>
+										</v8:item>
+									</Title>
+									<HorizontalStretch>true</HorizontalStretch>
+									<InputHint>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>например: Cursor на ноутбуке Иванова</v8:content>
+										</v8:item>
+									</InputHint>
+									<ContextMenu name="НовыйТокенОписаниеКонтекстноеМеню" id="96"/>
+									<ExtendedTooltip name="НовыйТокенОписаниеРасширеннаяПодсказка" id="97"/>
+								</InputField>
+								<Button name="ВыпуститьТокен" id="98">
+									<CommandName>Form.Command.ВыпуститьТокен</CommandName>
+									<ExtendedTooltip name="ВыпуститьТокенРасширеннаяПодсказка" id="99"/>
+								</Button>
+								<InputField name="ВыпущенныйТокен" id="100">
+									<DataPath>ВыпущенныйТокен</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Скопируйте токен сейчас</v8:content>
+										</v8:item>
+									</Title>
+									<Visible>false</Visible>
+									<ReadOnly>true</ReadOnly>
+									<HorizontalStretch>true</HorizontalStretch>
+									<ContextMenu name="ВыпущенныйТокенКонтекстноеМеню" id="101"/>
+									<ExtendedTooltip name="ВыпущенныйТокенРасширеннаяПодсказка" id="102"/>
+								</InputField>
+							</ChildItems>
+						</UsualGroup>
+					</ChildItems>
+				</Page>
+				<Page name="СтраницаДиагностика" id="103">
+					<Title>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Диагностика</v8:content>
+						</v8:item>
+					</Title>
+					<ExtendedTooltip name="СтраницаДиагностикаРасширеннаяПодсказка" id="104"/>
+					<ChildItems>
+						<Button name="Проверить" id="105">
+							<CommandName>Form.Command.Проверить</CommandName>
+							<ExtendedTooltip name="ПроверитьРасширеннаяПодсказка" id="106"/>
+						</Button>
+						<HTMLDocumentField name="ДиагностикаHTML" id="107">
+							<DataPath>ДиагностикаHTML</DataPath>
+							<TitleLocation>None</TitleLocation>
+							<Width>70</Width>
+							<Height>16</Height>
+							<HorizontalStretch>true</HorizontalStretch>
+							<VerticalStretch>true</VerticalStretch>
+							<Output>Enable</Output>
+							<WarningOnEditRepresentation>DontShow</WarningOnEditRepresentation>
+							<ContextMenu name="ДиагностикаHTMLКонтекстноеМеню" id="108"/>
+							<ExtendedTooltip name="ДиагностикаHTMLРасширеннаяПодсказка" id="109"/>
+						</HTMLDocumentField>
+					</ChildItems>
+				</Page>
+			</ChildItems>
+		</Pages>
+		<UsualGroup name="ГруппаКнопки" id="110">
+			<Group>Horizontal</Group>
+			<ExtendedTooltip name="ГруппаКнопкиРасширеннаяПодсказка" id="111"/>
+			<ChildItems>
+				<Button name="ЗаписатьИЗакрыть" id="112">
+					<CommandName>Form.Command.ЗаписатьИЗакрыть</CommandName>
+					<DefaultButton>true</DefaultButton>
+					<ExtendedTooltip name="ЗаписатьИЗакрытьРасширеннаяПодсказка" id="113"/>
+				</Button>
+				<Button name="Записать" id="114">
+					<CommandName>Form.Command.Записать</CommandName>
+					<ExtendedTooltip name="ЗаписатьРасширеннаяПодсказка" id="115"/>
+				</Button>
+				<Button name="Закрыть" id="116">
+					<CommandName>Form.StandardCommand.Close</CommandName>
+					<ExtendedTooltip name="ЗакрытьРасширеннаяПодсказка" id="117"/>
+				</Button>
+			</ChildItems>
+		</UsualGroup>
+	</ChildItems>
+	<Attributes>
+		<Attribute name="Объект" id="118">
+			<Type>
+				<v8:Type>cfg:DataProcessorObject.АнализКонфигурацииMCP</v8:Type>
+			</Type>
+			<MainAttribute>true</MainAttribute>
+		</Attribute>
+		<Attribute name="АдресОркестратора" id="119">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>АдресОркестратора</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:string</v8:Type>
+				<v8:StringQualifiers>
+					<v8:Length>500</v8:Length>
+					<v8:AllowedLength>Variable</v8:AllowedLength>
+				</v8:StringQualifiers>
+			</Type>
+		</Attribute>
+		<Attribute name="ПроверятьСертификат" id="120">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>ПроверятьСертификат</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:boolean</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="ТаймаутОтвета" id="121">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>ТаймаутОтвета</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:decimal</v8:Type>
+				<v8:NumberQualifiers>
+					<v8:Digits>5</v8:Digits>
+					<v8:FractionDigits>0</v8:FractionDigits>
+					<v8:AllowedSign>Nonnegative</v8:AllowedSign>
+				</v8:NumberQualifiers>
+			</Type>
+		</Attribute>
+		<Attribute name="КлючОркестратора" id="122">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>КлючОркестратора</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:string</v8:Type>
+				<v8:StringQualifiers>
+					<v8:Length>200</v8:Length>
+					<v8:AllowedLength>Variable</v8:AllowedLength>
+				</v8:StringQualifiers>
+			</Type>
+		</Attribute>
+		<Attribute name="АдресПубликацииMCP" id="123">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>АдресПубликацииMCP</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:string</v8:Type>
+				<v8:StringQualifiers>
+					<v8:Length>500</v8:Length>
+					<v8:AllowedLength>Variable</v8:AllowedLength>
+				</v8:StringQualifiers>
+			</Type>
+		</Attribute>
+		<Attribute name="ДоступКИнструментамБезТокена" id="124">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>ДоступКИнструментамБезТокена</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:boolean</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="СрокДействияТокенаЗапроса" id="125">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>СрокДействияТокенаЗапроса</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:decimal</v8:Type>
+				<v8:NumberQualifiers>
+					<v8:Digits>4</v8:Digits>
+					<v8:FractionDigits>0</v8:FractionDigits>
+					<v8:AllowedSign>Nonnegative</v8:AllowedSign>
+				</v8:NumberQualifiers>
+			</Type>
+		</Attribute>
+		<Attribute name="ЛокальныеПользователи" id="126">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>ЛокальныеПользователи</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>v8:ValueTable</v8:Type>
+			</Type>
+			<Columns>
+				<Column name="Пользователь" id="127">
+					<Type>
+						<v8:Type>xs:string</v8:Type>
+						<v8:StringQualifiers>
+							<v8:Length>150</v8:Length>
+							<v8:AllowedLength>Variable</v8:AllowedLength>
+						</v8:StringQualifiers>
+					</Type>
+				</Column>
+				<Column name="ИдентификаторПользователя" id="128">
+					<Type>
+						<v8:Type>xs:string</v8:Type>
+						<v8:StringQualifiers>
+							<v8:Length>36</v8:Length>
+							<v8:AllowedLength>Variable</v8:AllowedLength>
+						</v8:StringQualifiers>
+					</Type>
+				</Column>
+				<Column name="ЛокальныйРежим" id="129">
+					<Type>
+						<v8:Type>xs:boolean</v8:Type>
+					</Type>
+				</Column>
+			</Columns>
+		</Attribute>
+		<Attribute name="ПерсональныеТокены" id="130">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>ПерсональныеТокены</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>v8:ValueTable</v8:Type>
+			</Type>
+			<Columns>
+				<Column name="Хеш" id="131">
+					<Type>
+						<v8:Type>xs:string</v8:Type>
+						<v8:StringQualifiers>
+							<v8:Length>64</v8:Length>
+							<v8:AllowedLength>Variable</v8:AllowedLength>
+						</v8:StringQualifiers>
+					</Type>
+				</Column>
+				<Column name="ИмяПользователя" id="132">
+					<Type>
+						<v8:Type>xs:string</v8:Type>
+						<v8:StringQualifiers>
+							<v8:Length>100</v8:Length>
+							<v8:AllowedLength>Variable</v8:AllowedLength>
+						</v8:StringQualifiers>
+					</Type>
+				</Column>
+				<Column name="Описание" id="133">
+					<Type>
+						<v8:Type>xs:string</v8:Type>
+						<v8:StringQualifiers>
+							<v8:Length>200</v8:Length>
+							<v8:AllowedLength>Variable</v8:AllowedLength>
+						</v8:StringQualifiers>
+					</Type>
+				</Column>
+				<Column name="СрокДействия" id="134">
+					<Type>
+						<v8:Type>xs:dateTime</v8:Type>
+						<v8:DateQualifiers>
+							<v8:DateFractions>DateTime</v8:DateFractions>
+						</v8:DateQualifiers>
+					</Type>
+				</Column>
+				<Column name="Создан" id="135">
+					<Type>
+						<v8:Type>xs:dateTime</v8:Type>
+						<v8:DateQualifiers>
+							<v8:DateFractions>DateTime</v8:DateFractions>
+						</v8:DateQualifiers>
+					</Type>
+				</Column>
+			</Columns>
+		</Attribute>
+		<Attribute name="НовыйТокенПользователь" id="136">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>НовыйТокенПользователь</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:string</v8:Type>
+				<v8:StringQualifiers>
+					<v8:Length>150</v8:Length>
+					<v8:AllowedLength>Variable</v8:AllowedLength>
+				</v8:StringQualifiers>
+			</Type>
+		</Attribute>
+		<Attribute name="НовыйТокенИдентификатор" id="137">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>НовыйТокенИдентификатор</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:string</v8:Type>
+				<v8:StringQualifiers>
+					<v8:Length>36</v8:Length>
+					<v8:AllowedLength>Variable</v8:AllowedLength>
+				</v8:StringQualifiers>
+			</Type>
+		</Attribute>
+		<Attribute name="НовыйТокенСрок" id="138">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>НовыйТокенСрок</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:dateTime</v8:Type>
+				<v8:DateQualifiers>
+					<v8:DateFractions>Date</v8:DateFractions>
+				</v8:DateQualifiers>
+			</Type>
+		</Attribute>
+		<Attribute name="НовыйТокенОписание" id="139">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>НовыйТокенОписание</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:string</v8:Type>
+				<v8:StringQualifiers>
+					<v8:Length>200</v8:Length>
+					<v8:AllowedLength>Variable</v8:AllowedLength>
+				</v8:StringQualifiers>
+			</Type>
+		</Attribute>
+		<Attribute name="ВыпущенныйТокен" id="140">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>ВыпущенныйТокен</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:string</v8:Type>
+				<v8:StringQualifiers>
+					<v8:Length>100</v8:Length>
+					<v8:AllowedLength>Variable</v8:AllowedLength>
+				</v8:StringQualifiers>
+			</Type>
+		</Attribute>
+		<Attribute name="ДиагностикаHTML" id="141">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>ДиагностикаHTML</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:string</v8:Type>
+				<v8:StringQualifiers>
+					<v8:Length>0</v8:Length>
+					<v8:AllowedLength>Variable</v8:AllowedLength>
+				</v8:StringQualifiers>
+			</Type>
+		</Attribute>
+	</Attributes>
+	<Commands>
+		<Command name="Записать" id="142">
+			<Action>КомандаЗаписать</Action>
+		</Command>
+		<Command name="ЗаписатьИЗакрыть" id="143">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Записать и закрыть</v8:content>
+				</v8:item>
+			</Title>
+			<Action>ЗаписатьИЗакрыть</Action>
+		</Command>
+		<Command name="РазрешитьЛокальныйРежим" id="144">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Разрешить пользователю...</v8:content>
+				</v8:item>
+			</Title>
+			<Action>РазрешитьЛокальныйРежим</Action>
+		</Command>
+		<Command name="ЗапретитьЛокальныйРежим" id="145">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Запретить</v8:content>
+				</v8:item>
+			</Title>
+			<Action>ЗапретитьЛокальныйРежим</Action>
+		</Command>
+		<Command name="ВыпуститьТокен" id="146">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Выпустить токен</v8:content>
+				</v8:item>
+			</Title>
+			<Action>ВыпуститьТокен</Action>
+		</Command>
+		<Command name="ОтозватьТокен" id="147">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Отозвать выбранный</v8:content>
+				</v8:item>
+			</Title>
+			<Action>ОтозватьТокен</Action>
+		</Command>
+		<Command name="Проверить" id="148">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Записать и проверить</v8:content>
+				</v8:item>
+			</Title>
+			<Action>Проверить</Action>
+		</Command>
+	</Commands>
+</Form>

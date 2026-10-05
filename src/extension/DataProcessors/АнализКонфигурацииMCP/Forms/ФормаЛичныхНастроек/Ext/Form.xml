@@ -1,0 +1,358 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<Form xmlns="http://v8.1c.ru/8.3/xcf/logform" xmlns:app="http://v8.1c.ru/8.2/managed-application/core" xmlns:cfg="http://v8.1c.ru/8.1/data/enterprise/current-config" xmlns:dcscor="http://v8.1c.ru/8.1/data-composition-system/core" xmlns:dcssch="http://v8.1c.ru/8.1/data-composition-system/schema" xmlns:dcsset="http://v8.1c.ru/8.1/data-composition-system/settings" xmlns:ent="http://v8.1c.ru/8.1/data/enterprise" xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform" xmlns:style="http://v8.1c.ru/8.1/data/ui/style" xmlns:sys="http://v8.1c.ru/8.1/data/ui/fonts/system" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:web="http://v8.1c.ru/8.1/data/ui/colors/web" xmlns:win="http://v8.1c.ru/8.1/data/ui/colors/windows" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.20">
+	<Title>
+		<v8:item>
+			<v8:lang>ru</v8:lang>
+			<v8:content>Мои настройки LLM</v8:content>
+		</v8:item>
+	</Title>
+	<AutoTitle>false</AutoTitle>
+	<AutoCommandBar name="ФормаКоманднаяПанель" id="-1"/>
+	<Events>
+		<Event name="OnCreateAtServer">ПриСозданииНаСервере</Event>
+	</Events>
+	<ChildItems>
+		<LabelDecoration name="ЛокальныйРежимНеРазрешен" id="1">
+			<Title formatted="false">
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Локальный режим вам не разрешен: вопросы обрабатывает серверный оркестратор. Разрешение дает администратор в настройках подключения к LLM.</v8:content>
+				</v8:item>
+			</Title>
+			<Visible>false</Visible>
+			<Width>100</Width>
+			<ContextMenu name="ЛокальныйРежимНеРазрешенКонтекстноеМеню" id="2"/>
+			<ExtendedTooltip name="ЛокальныйРежимНеРазрешенРасширеннаяПодсказка" id="3"/>
+		</LabelDecoration>
+		<UsualGroup name="ГруппаЛокальныйРежим" id="4">
+			<Group>Vertical</Group>
+			<ExtendedTooltip name="ГруппаЛокальныйРежимРасширеннаяПодсказка" id="5"/>
+			<ChildItems>
+				<CheckBoxField name="ЛокальныйРежим" id="6">
+					<DataPath>ЛокальныйРежим</DataPath>
+					<Title>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Задавать вопросы локальному оркестратору на этом компьютере</v8:content>
+						</v8:item>
+					</Title>
+					<ContextMenu name="ЛокальныйРежимКонтекстноеМеню" id="7"/>
+					<ExtendedTooltip name="ЛокальныйРежимРасширеннаяПодсказка" id="8"/>
+					<Events>
+						<Event name="OnChange">ЛокальныйРежимПриИзменении</Event>
+					</Events>
+				</CheckBoxField>
+				<InputField name="АдресЛокальногоОркестратора" id="9">
+					<DataPath>АдресЛокальногоОркестратора</DataPath>
+					<Title>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Адрес оркестратора</v8:content>
+						</v8:item>
+					</Title>
+					<InputHint>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>http://127.0.0.1:9000</v8:content>
+						</v8:item>
+					</InputHint>
+					<ContextMenu name="АдресЛокальногоОркестратораКонтекстноеМеню" id="10"/>
+					<ExtendedTooltip name="АдресЛокальногоОркестратораРасширеннаяПодсказка" id="11"/>
+				</InputField>
+				<UsualGroup name="ГруппаКлюч" id="12">
+					<Group>Horizontal</Group>
+					<ExtendedTooltip name="ГруппаКлючРасширеннаяПодсказка" id="13"/>
+					<ChildItems>
+						<InputField name="КлючЛокальногоОркестратора" id="14">
+							<DataPath>КлючЛокальногоОркестратора</DataPath>
+							<Title>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Ключ (client_key и admin_key)</v8:content>
+								</v8:item>
+							</Title>
+							<ReadOnly>true</ReadOnly>
+							<PasswordMode>true</PasswordMode>
+							<HorizontalStretch>true</HorizontalStretch>
+							<ContextMenu name="КлючЛокальногоОркестратораКонтекстноеМеню" id="15"/>
+							<ExtendedTooltip name="КлючЛокальногоОркестратораРасширеннаяПодсказка" id="16"/>
+						</InputField>
+						<Button name="ПоказатьКлюч" id="17">
+							<CommandName>Form.Command.ПоказатьКлюч</CommandName>
+							<ExtendedTooltip name="ПоказатьКлючРасширеннаяПодсказка" id="18"/>
+						</Button>
+					</ChildItems>
+				</UsualGroup>
+				<CheckBoxField name="Автозапуск" id="19">
+					<DataPath>Автозапуск</DataPath>
+					<Title>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Запускать Ollama и оркестратор, если они не отвечают</v8:content>
+						</v8:item>
+					</Title>
+					<ContextMenu name="АвтозапускКонтекстноеМеню" id="20"/>
+					<ExtendedTooltip name="АвтозапускРасширеннаяПодсказка" id="21"/>
+				</CheckBoxField>
+				<InputField name="ПутьКOllama" id="22">
+					<DataPath>ПутьКOllama</DataPath>
+					<Title>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Путь к ollama.exe</v8:content>
+						</v8:item>
+					</Title>
+					<HorizontalStretch>true</HorizontalStretch>
+					<InputHint>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>пусто - ollama из PATH</v8:content>
+						</v8:item>
+					</InputHint>
+					<ContextMenu name="ПутьКOllamaКонтекстноеМеню" id="23"/>
+					<ExtendedTooltip name="ПутьКOllamaРасширеннаяПодсказка" id="24"/>
+				</InputField>
+				<InputField name="ПутьКPython" id="25">
+					<DataPath>ПутьКPython</DataPath>
+					<Title>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Путь к python</v8:content>
+						</v8:item>
+					</Title>
+					<HorizontalStretch>true</HorizontalStretch>
+					<ContextMenu name="ПутьКPythonКонтекстноеМеню" id="26"/>
+					<ExtendedTooltip name="ПутьКPythonРасширеннаяПодсказка" id="27"/>
+				</InputField>
+				<InputField name="КаталогОркестратора" id="28">
+					<DataPath>КаталогОркестратора</DataPath>
+					<Title>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Каталог оркестратора</v8:content>
+						</v8:item>
+					</Title>
+					<HorizontalStretch>true</HorizontalStretch>
+					<InputHint>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>пусто - временный каталог</v8:content>
+						</v8:item>
+					</InputHint>
+					<ContextMenu name="КаталогОркестратораКонтекстноеМеню" id="29"/>
+					<ExtendedTooltip name="КаталогОркестратораРасширеннаяПодсказка" id="30"/>
+				</InputField>
+			</ChildItems>
+		</UsualGroup>
+		<UsualGroup name="ГруппаДиагностика" id="31">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Диагностика</v8:content>
+				</v8:item>
+			</Title>
+			<Group>Vertical</Group>
+			<ExtendedTooltip name="ГруппаДиагностикаРасширеннаяПодсказка" id="32"/>
+			<ChildItems>
+				<Button name="Проверить" id="33">
+					<CommandName>Form.Command.Проверить</CommandName>
+					<ExtendedTooltip name="ПроверитьРасширеннаяПодсказка" id="34"/>
+				</Button>
+				<HTMLDocumentField name="ДиагностикаHTML" id="35">
+					<DataPath>ДиагностикаHTML</DataPath>
+					<TitleLocation>None</TitleLocation>
+					<Width>70</Width>
+					<Height>16</Height>
+					<HorizontalStretch>true</HorizontalStretch>
+					<VerticalStretch>true</VerticalStretch>
+					<Output>Enable</Output>
+					<WarningOnEditRepresentation>DontShow</WarningOnEditRepresentation>
+					<ContextMenu name="ДиагностикаHTMLКонтекстноеМеню" id="36"/>
+					<ExtendedTooltip name="ДиагностикаHTMLРасширеннаяПодсказка" id="37"/>
+				</HTMLDocumentField>
+			</ChildItems>
+		</UsualGroup>
+		<UsualGroup name="ГруппаКнопки" id="38">
+			<Group>Horizontal</Group>
+			<ExtendedTooltip name="ГруппаКнопкиРасширеннаяПодсказка" id="39"/>
+			<ChildItems>
+				<Button name="ЗаписатьИЗакрыть" id="40">
+					<CommandName>Form.Command.ЗаписатьИЗакрыть</CommandName>
+					<DefaultButton>true</DefaultButton>
+					<ExtendedTooltip name="ЗаписатьИЗакрытьРасширеннаяПодсказка" id="41"/>
+				</Button>
+				<Button name="Записать" id="42">
+					<CommandName>Form.Command.Записать</CommandName>
+					<ExtendedTooltip name="ЗаписатьРасширеннаяПодсказка" id="43"/>
+				</Button>
+				<Button name="Закрыть" id="44">
+					<CommandName>Form.StandardCommand.Close</CommandName>
+					<ExtendedTooltip name="ЗакрытьРасширеннаяПодсказка" id="45"/>
+				</Button>
+			</ChildItems>
+		</UsualGroup>
+	</ChildItems>
+	<Attributes>
+		<Attribute name="Объект" id="46">
+			<Type>
+				<v8:Type>cfg:DataProcessorObject.АнализКонфигурацииMCP</v8:Type>
+			</Type>
+			<MainAttribute>true</MainAttribute>
+		</Attribute>
+		<Attribute name="РазрешенЛокальныйРежим" id="47">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>РазрешенЛокальныйРежим</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:boolean</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="ЛокальныйРежим" id="48">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>ЛокальныйРежим</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:boolean</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="АдресЛокальногоОркестратора" id="49">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>АдресЛокальногоОркестратора</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:string</v8:Type>
+				<v8:StringQualifiers>
+					<v8:Length>200</v8:Length>
+					<v8:AllowedLength>Variable</v8:AllowedLength>
+				</v8:StringQualifiers>
+			</Type>
+		</Attribute>
+		<Attribute name="КлючЛокальногоОркестратора" id="50">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>КлючЛокальногоОркестратора</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:string</v8:Type>
+				<v8:StringQualifiers>
+					<v8:Length>100</v8:Length>
+					<v8:AllowedLength>Variable</v8:AllowedLength>
+				</v8:StringQualifiers>
+			</Type>
+		</Attribute>
+		<Attribute name="Автозапуск" id="51">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Автозапуск</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:boolean</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="ПутьКOllama" id="52">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>ПутьКOllama</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:string</v8:Type>
+				<v8:StringQualifiers>
+					<v8:Length>500</v8:Length>
+					<v8:AllowedLength>Variable</v8:AllowedLength>
+				</v8:StringQualifiers>
+			</Type>
+		</Attribute>
+		<Attribute name="ПутьКPython" id="53">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>ПутьКPython</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:string</v8:Type>
+				<v8:StringQualifiers>
+					<v8:Length>500</v8:Length>
+					<v8:AllowedLength>Variable</v8:AllowedLength>
+				</v8:StringQualifiers>
+			</Type>
+		</Attribute>
+		<Attribute name="КаталогОркестратора" id="54">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>КаталогОркестратора</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:string</v8:Type>
+				<v8:StringQualifiers>
+					<v8:Length>500</v8:Length>
+					<v8:AllowedLength>Variable</v8:AllowedLength>
+				</v8:StringQualifiers>
+			</Type>
+		</Attribute>
+		<Attribute name="ДиагностикаHTML" id="55">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>ДиагностикаHTML</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:string</v8:Type>
+				<v8:StringQualifiers>
+					<v8:Length>0</v8:Length>
+					<v8:AllowedLength>Variable</v8:AllowedLength>
+				</v8:StringQualifiers>
+			</Type>
+		</Attribute>
+	</Attributes>
+	<Commands>
+		<Command name="Записать" id="56">
+			<Action>КомандаЗаписать</Action>
+		</Command>
+		<Command name="ЗаписатьИЗакрыть" id="57">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Записать и закрыть</v8:content>
+				</v8:item>
+			</Title>
+			<Action>ЗаписатьИЗакрыть</Action>
+		</Command>
+		<Command name="ПоказатьКлюч" id="58">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Показать</v8:content>
+				</v8:item>
+			</Title>
+			<Action>ПоказатьКлюч</Action>
+		</Command>
+		<Command name="Проверить" id="59">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Записать и проверить</v8:content>
+				</v8:item>
+			</Title>
+			<Action>Проверить</Action>
+		</Command>
+	</Commands>
+</Form>

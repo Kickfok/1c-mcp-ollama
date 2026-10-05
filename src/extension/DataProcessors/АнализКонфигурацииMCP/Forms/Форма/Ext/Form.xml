@@ -98,6 +98,20 @@
 									<CommandName>Form.Command.ОткрытьМонитор</CommandName>
 									<ExtendedTooltip name="ОткрытьМониторРасширеннаяПодсказка" id="113"/>
 								</Button>
+								<Button name="ОткрытьНастройки" id="120">
+									<Type>UsualButton</Type>
+									<Representation>Text</Representation>
+									<GroupHorizontalAlign>Right</GroupHorizontalAlign>
+									<CommandName>Form.Command.ОткрытьНастройки</CommandName>
+									<ExtendedTooltip name="ОткрытьНастройкиРасширеннаяПодсказка" id="121"/>
+								</Button>
+								<Button name="ОткрытьЛичныеНастройки" id="122">
+									<Type>UsualButton</Type>
+									<Representation>Text</Representation>
+									<GroupHorizontalAlign>Right</GroupHorizontalAlign>
+									<CommandName>Form.Command.ОткрытьЛичныеНастройки</CommandName>
+									<ExtendedTooltip name="ОткрытьЛичныеНастройкиРасширеннаяПодсказка" id="123"/>
+								</Button>
 							</ChildItems>
 						</UsualGroup>
 						<CheckBoxField name="ПоказыватьХодВыполнения" id="114">
@@ -667,6 +681,36 @@
 				</v8:item>
 			</ToolTip>
 			<Action>ОткрытьМонитор</Action>
+		</Command>
+		<Command name="ОткрытьНастройки" id="3">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Настройки</v8:content>
+				</v8:item>
+			</Title>
+			<ToolTip>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Адрес и ключ серверного оркестратора, пользователи с локальным режимом, персональные токены, диагностика</v8:content>
+				</v8:item>
+			</ToolTip>
+			<Action>ОткрытьНастройки</Action>
+		</Command>
+		<Command name="ОткрытьЛичныеНастройки" id="4">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Мои настройки</v8:content>
+				</v8:item>
+			</Title>
+			<ToolTip>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Локальный режим на этом компьютере и проверка подключения</v8:content>
+				</v8:item>
+			</ToolTip>
+			<Action>ОткрытьЛичныеНастройки</Action>
 		</Command>
 	</Commands>
 </Form>

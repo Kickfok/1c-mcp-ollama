@@ -29,8 +29,10 @@
 		</Properties>
 		<ChildObjects>
 			<Form>Форма</Form>
+			<Form>ФормаНастроек</Form>
+			<Form>ФормаЛичныхНастроек</Form>
 			<Template>LLM_Orchestrator</Template>
-			<Template>ОформлениеОтвета</Template>
+			<Template>ОформлениеОтвета</Template>
 		</ChildObjects>
 	</DataProcessor>
 </MetaDataObject>
