@@ -143,6 +143,7 @@
 						<Width>51</Width>
 						<AutoMaxWidth>false</AutoMaxWidth>
 						<MaxWidth>51</MaxWidth>
+						<HeightInTableRows>4</HeightInTableRows>
 						<AutoInsertNewRow>true</AutoInsertNewRow>
 						<EnableStartDrag>true</EnableStartDrag>
 						<EnableDrag>true</EnableDrag>
@@ -293,7 +294,8 @@
 								<GroupHorizontalAlign>Left</GroupHorizontalAlign>
 								<EditMode>EnterOnInput</EditMode>
 								<Width>1</Width>
-								<VerticalStretch>false</VerticalStretch>
+								<Height>4</Height>
+								<VerticalStretch>true</VerticalStretch>
 								<ContextMenu name="ТаблицаИнструментовДеревоСхемаПараметровКонтекстноеМеню" id="75"/>
 								<ExtendedTooltip name="ТаблицаИнструментовДеревоСхемаПараметровРасширеннаяПодсказка" id="76"/>
 							</TextDocumentField>
@@ -329,7 +331,7 @@
 							<DataPath>ОтветHTML</DataPath>
 							<TitleLocation>None</TitleLocation>
 							<Width>60</Width>
-							<Height>20</Height>
+							<Height>10</Height>
 							<HorizontalStretch>true</HorizontalStretch>
 							<VerticalStretch>true</VerticalStretch>
 							<Output>Enable</Output>

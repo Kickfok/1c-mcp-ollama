@@ -44,7 +44,8 @@
 									<v8:content>Адрес оркестратора</v8:content>
 								</v8:item>
 							</Title>
-							<HorizontalStretch>true</HorizontalStretch>
+							<Width>52</Width>
+							<HorizontalStretch>false</HorizontalStretch>
 							<InputHint>
 								<v8:item>
 									<v8:lang>ru</v8:lang>
@@ -62,6 +63,7 @@
 									<v8:content>Проверять сертификат HTTPS</v8:content>
 								</v8:item>
 							</Title>
+							<TitleLocation>Right</TitleLocation>
 							<ContextMenu name="ПроверятьСертификатКонтекстноеМеню" id="12"/>
 							<ExtendedTooltip name="ПроверятьСертификатРасширеннаяПодсказка" id="13"/>
 						</CheckBoxField>
@@ -78,6 +80,9 @@
 						</InputField>
 						<UsualGroup name="ГруппаКлюч" id="17">
 							<Group>Horizontal</Group>
+							<Representation>None</Representation>
+							<ShowTitle>false</ShowTitle>
+							<ThroughAlign>Use</ThroughAlign>
 							<ExtendedTooltip name="ГруппаКлючРасширеннаяПодсказка" id="18"/>
 							<ChildItems>
 								<InputField name="КлючОркестратора" id="19">
@@ -89,7 +94,8 @@
 										</v8:item>
 									</Title>
 									<PasswordMode>true</PasswordMode>
-									<HorizontalStretch>true</HorizontalStretch>
+									<Width>52</Width>
+									<HorizontalStretch>false</HorizontalStretch>
 									<InputHint>
 										<v8:item>
 											<v8:lang>ru</v8:lang>
@@ -141,11 +147,18 @@
 									<v8:content>Адрес публикации MCP</v8:content>
 								</v8:item>
 							</Title>
-							<HorizontalStretch>true</HorizontalStretch>
+							<ToolTip>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Адрес HTTP-сервиса MCP, который получают локальные оркестраторы пользователей</v8:content>
+								</v8:item>
+							</ToolTip>
+							<Width>52</Width>
+							<HorizontalStretch>false</HorizontalStretch>
 							<InputHint>
 								<v8:item>
 									<v8:lang>ru</v8:lang>
-									<v8:content>https://сервер/база/hs/mcp - для локальных оркестраторов пользователей</v8:content>
+									<v8:content>https://сервер/база/hs/mcp</v8:content>
 								</v8:item>
 							</InputHint>
 							<ContextMenu name="АдресПубликацииMCPКонтекстноеМеню" id="31"/>
@@ -159,6 +172,7 @@
 									<v8:content>Разрешить вызов инструментов без токена</v8:content>
 								</v8:item>
 							</Title>
+							<TitleLocation>Right</TitleLocation>
 							<ContextMenu name="ДоступКИнструментамБезТокенаКонтекстноеМеню" id="34"/>
 							<ExtendedTooltip name="ДоступКИнструментамБезТокенаРасширеннаяПодсказка" id="35"/>
 						</CheckBoxField>
@@ -427,7 +441,7 @@
 							<DataPath>ДиагностикаHTML</DataPath>
 							<TitleLocation>None</TitleLocation>
 							<Width>70</Width>
-							<Height>16</Height>
+							<Height>6</Height>
 							<HorizontalStretch>true</HorizontalStretch>
 							<VerticalStretch>true</VerticalStretch>
 							<Output>Enable</Output>

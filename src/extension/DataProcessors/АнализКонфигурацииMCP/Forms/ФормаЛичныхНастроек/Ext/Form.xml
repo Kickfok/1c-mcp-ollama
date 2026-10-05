@@ -26,6 +26,9 @@
 		</LabelDecoration>
 		<UsualGroup name="ГруппаЛокальныйРежим" id="4">
 			<Group>Vertical</Group>
+			<Representation>None</Representation>
+			<ShowTitle>false</ShowTitle>
+			<ThroughAlign>Use</ThroughAlign>
 			<ExtendedTooltip name="ГруппаЛокальныйРежимРасширеннаяПодсказка" id="5"/>
 			<ChildItems>
 				<CheckBoxField name="ЛокальныйРежим" id="6">
@@ -36,6 +39,7 @@
 							<v8:content>Задавать вопросы локальному оркестратору на этом компьютере</v8:content>
 						</v8:item>
 					</Title>
+					<TitleLocation>Right</TitleLocation>
 					<ContextMenu name="ЛокальныйРежимКонтекстноеМеню" id="7"/>
 					<ExtendedTooltip name="ЛокальныйРежимРасширеннаяПодсказка" id="8"/>
 					<Events>
@@ -50,6 +54,8 @@
 							<v8:content>Адрес оркестратора</v8:content>
 						</v8:item>
 					</Title>
+					<Width>52</Width>
+					<HorizontalStretch>false</HorizontalStretch>
 					<InputHint>
 						<v8:item>
 							<v8:lang>ru</v8:lang>
@@ -61,19 +67,29 @@
 				</InputField>
 				<UsualGroup name="ГруппаКлюч" id="12">
 					<Group>Horizontal</Group>
+					<Representation>None</Representation>
+					<ShowTitle>false</ShowTitle>
+					<ThroughAlign>Use</ThroughAlign>
 					<ExtendedTooltip name="ГруппаКлючРасширеннаяПодсказка" id="13"/>
 					<ChildItems>
 						<InputField name="КлючЛокальногоОркестратора" id="14">
 							<DataPath>КлючЛокальногоОркестратора</DataPath>
+							<ReadOnly>true</ReadOnly>
 							<Title>
 								<v8:item>
 									<v8:lang>ru</v8:lang>
-									<v8:content>Ключ (client_key и admin_key)</v8:content>
+									<v8:content>Ключ оркестратора</v8:content>
 								</v8:item>
 							</Title>
-							<ReadOnly>true</ReadOnly>
+							<ToolTip>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Значение client_key и admin_key в файле конфигурации локального оркестратора</v8:content>
+								</v8:item>
+							</ToolTip>
 							<PasswordMode>true</PasswordMode>
-							<HorizontalStretch>true</HorizontalStretch>
+							<Width>52</Width>
+							<HorizontalStretch>false</HorizontalStretch>
 							<ContextMenu name="КлючЛокальногоОркестратораКонтекстноеМеню" id="15"/>
 							<ExtendedTooltip name="КлючЛокальногоОркестратораРасширеннаяПодсказка" id="16"/>
 						</InputField>
@@ -91,6 +107,7 @@
 							<v8:content>Запускать Ollama и оркестратор, если они не отвечают</v8:content>
 						</v8:item>
 					</Title>
+					<TitleLocation>Right</TitleLocation>
 					<ContextMenu name="АвтозапускКонтекстноеМеню" id="20"/>
 					<ExtendedTooltip name="АвтозапускРасширеннаяПодсказка" id="21"/>
 				</CheckBoxField>
@@ -102,7 +119,9 @@
 							<v8:content>Путь к ollama.exe</v8:content>
 						</v8:item>
 					</Title>
-					<HorizontalStretch>true</HorizontalStretch>
+					<ChoiceButton>true</ChoiceButton>
+					<Width>50</Width>
+					<HorizontalStretch>false</HorizontalStretch>
 					<InputHint>
 						<v8:item>
 							<v8:lang>ru</v8:lang>
@@ -111,18 +130,32 @@
 					</InputHint>
 					<ContextMenu name="ПутьКOllamaКонтекстноеМеню" id="23"/>
 					<ExtendedTooltip name="ПутьКOllamaРасширеннаяПодсказка" id="24"/>
+					<Events>
+						<Event name="StartChoice">ПутьКOllamaНачалоВыбора</Event>
+					</Events>
 				</InputField>
 				<InputField name="ПутьКPython" id="25">
 					<DataPath>ПутьКPython</DataPath>
 					<Title>
 						<v8:item>
 							<v8:lang>ru</v8:lang>
-							<v8:content>Путь к python</v8:content>
+							<v8:content>Путь к python.exe</v8:content>
 						</v8:item>
 					</Title>
-					<HorizontalStretch>true</HorizontalStretch>
+					<ChoiceButton>true</ChoiceButton>
+					<Width>50</Width>
+					<HorizontalStretch>false</HorizontalStretch>
+					<InputHint>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>пусто - python из PATH</v8:content>
+						</v8:item>
+					</InputHint>
 					<ContextMenu name="ПутьКPythonКонтекстноеМеню" id="26"/>
 					<ExtendedTooltip name="ПутьКPythonРасширеннаяПодсказка" id="27"/>
+					<Events>
+						<Event name="StartChoice">ПутьКPythonНачалоВыбора</Event>
+					</Events>
 				</InputField>
 				<InputField name="КаталогОркестратора" id="28">
 					<DataPath>КаталогОркестратора</DataPath>
@@ -132,7 +165,9 @@
 							<v8:content>Каталог оркестратора</v8:content>
 						</v8:item>
 					</Title>
-					<HorizontalStretch>true</HorizontalStretch>
+					<ChoiceButton>true</ChoiceButton>
+					<Width>50</Width>
+					<HorizontalStretch>false</HorizontalStretch>
 					<InputHint>
 						<v8:item>
 							<v8:lang>ru</v8:lang>
@@ -141,6 +176,9 @@
 					</InputHint>
 					<ContextMenu name="КаталогОркестратораКонтекстноеМеню" id="29"/>
 					<ExtendedTooltip name="КаталогОркестратораРасширеннаяПодсказка" id="30"/>
+					<Events>
+						<Event name="StartChoice">КаталогОркестратораНачалоВыбора</Event>
+					</Events>
 				</InputField>
 			</ChildItems>
 		</UsualGroup>
@@ -162,7 +200,7 @@
 					<DataPath>ДиагностикаHTML</DataPath>
 					<TitleLocation>None</TitleLocation>
 					<Width>70</Width>
-					<Height>16</Height>
+					<Height>6</Height>
 					<HorizontalStretch>true</HorizontalStretch>
 					<VerticalStretch>true</VerticalStretch>
 					<Output>Enable</Output>

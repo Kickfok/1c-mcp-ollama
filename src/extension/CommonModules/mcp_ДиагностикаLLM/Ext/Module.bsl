@@ -639,8 +639,10 @@
 	|.sum{padding:10px 12px;border-radius:8px;margin-bottom:10px;font-weight:600}
 	|.sum.ok{background:#E8F7EF;color:#12864A}.sum.warning{background:#FFF4E0;color:#A65F00}
 	|.sum.error{background:#FDECEC;color:#D23C3C}
-	|.chk{display:flex;gap:10px;padding:8px 4px;border-bottom:1px solid #EEF0F8}
-	|.mark{width:22px;height:22px;border-radius:11px;color:#fff;text-align:center;line-height:22px;flex:none}
+	|.chk{padding:8px 4px;border-bottom:1px solid #EEF0F8;overflow:hidden}
+	|.mark{float:left;margin:0 12px 0 0;width:22px;height:22px;border-radius:11px;color:#fff;
+	|text-align:center;line-height:22px}
+	|.body{overflow:hidden}
 	|.mark.ok{background:#12864A}.mark.warning{background:#E08A00}.mark.error{background:#D23C3C}
 	|.mark.skip{background:#B4B9D3}.name{font-weight:600}.text{color:#3A4060}.hint{color:#6B7194;margin-top:2px}
 	|.mode{color:#6B7194;margin-bottom:8px}
@@ -677,7 +679,8 @@
 	Знак = Знаки.Получить(Проверка.Состояние);
 	Название = ЭкранироватьHTML(Проверка.Название);
 	Текст = ЭкранироватьHTML(Проверка.Текст);
-	Возврат СтрШаблон("<div class=""chk""><div class=""mark %1"">%2</div><div><div class=""name"">%3. %4</div>"
+	Возврат СтрШаблон("<div class=""chk""><div class=""mark %1"">%2</div><div class=""body"">"
+		+ "<div class=""name"">%3. %4</div>"
 		+ "<div class=""text"">%5</div>%6</div></div>", Проверка.Состояние, Знак, Проверка.Номер, Название, Текст,
 		Подсказка);
 
