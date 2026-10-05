@@ -24,3 +24,6 @@ venv/
 # Конфигурация оркестратора: содержит ключи клиента и администратора
 LLM_Orchestrator.config.json
 *.config.json.tmp
+
+# Журналы tools/build_extension.ps1
+build/logs/

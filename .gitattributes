@@ -38,3 +38,17 @@
 *.gz binary
 *.svg binary
 *.geom binary
+
+# Языки на GitHub (Linguist): кроме кода показывать разметку и данные, из которых состоит проект.
+# По умолчанию Linguist скрывает XML, YAML, JSON, Markdown и SVG, а docs/ и README считает документацией.
+*.xml linguist-detectable
+*.yml linguist-detectable
+*.json linguist-detectable
+*.md linguist-detectable linguist-documentation=false
+*.svg linguist-detectable
+docs/** linguist-documentation=false
+# HTML-макет оформления ответа хранится в формате выгрузки 1С как Template.bin
+src/extension/DataProcessors/АнализКонфигурацииMCP/Templates/ОформлениеОтвета/Ext/Template.bin linguist-language=HTML linguist-detectable
+# Копия оркестратора в макете обработки и собранное расширение - не считать дважды
+src/extension/DataProcessors/АнализКонфигурацииMCP/Templates/LLM_Orchestrator/Ext/Template.bin linguist-generated
+build/** linguist-generated

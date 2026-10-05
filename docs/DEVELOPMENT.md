@@ -70,12 +70,13 @@
 ## Проверка изменений
 
 ```powershell
-1cv8.exe DESIGNER /F"<тестовая база>" /LoadConfigFromFiles "src\extension" -Extension MCP_Сервер
-1cv8.exe DESIGNER /F"<тестовая база>" /CheckModules -ThinClient -Server -ExternalConnection -Extension MCP_Сервер
-1cv8.exe DESIGNER /F"<тестовая база>" /UpdateDBCfg -Extension MCP_Сервер
+# загрузка, проверка модулей во всех контекстах, обновление базы; -Dump - build/MCP_Сервер.cfe к релизу
+$env:MCP_1C_PASSWORD = "<пароль>"   # если у пользователя есть пароль
+powershell -File tools/build_extension.ps1 -Infobase "<каталог тестовой базы>" -User "<пользователь>"
 python tools/check_sources.py
 python tests/mcp_smoke.py http://localhost/<публикация>/hs/mcp
 python tools/gen_tools_doc.py http://localhost/<публикация>/hs/mcp > docs/TOOLS.md
+python tools/gen_openapi.py --base http://localhost/<публикация>
 ```
 
 Для проверки независимости от БСП используйте базу с пустой конфигурацией

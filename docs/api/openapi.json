@@ -1,0 +1,993 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "1C MCP Server - HTTP-сервис mcp_APIBackend",
+    "version": "1.1.0",
+    "description": "MCP-сервер 1С: инструменты чтения метаданных и данных базы для LLM по протоколу\nModel Context Protocol (JSON-RPC 2.0). Права проверяются по пользователю 1С из токена\nв заголовке X-MCP-Token; ограничения доступа на уровне записей (RLS) не применяются.\n\nИсходник описания - общий модуль mcp_APIBackendОписание расширения MCP_Сервер; файл собран tools/gen_openapi.py.",
+    "license": {
+      "name": "MIT",
+      "url": "https://github.com/Kickfok/1c-mcp-ollama/blob/main/LICENSE"
+    }
+  },
+  "externalDocs": {
+    "description": "Репозиторий проекта",
+    "url": "https://github.com/Kickfok/1c-mcp-ollama"
+  },
+  "servers": [
+    {
+      "url": "{scheme}://{host}/{publication}/hs",
+      "description": "Публикация информационной базы на веб-сервере",
+      "variables": {
+        "scheme": {
+          "enum": [
+            "https",
+            "http"
+          ],
+          "default": "https"
+        },
+        "host": {
+          "default": "localhost",
+          "description": "Сервер публикации"
+        },
+        "publication": {
+          "default": "base",
+          "description": "Имя публикации базы"
+        }
+      }
+    }
+  ],
+  "tags": [
+    {
+      "name": "Бэкэнд API для MCP",
+      "description": "MCP-сервер 1С: инструменты чтения метаданных и данных базы для LLM по протоколу\nModel Context Protocol (JSON-RPC 2.0). Права проверяются по пользователю 1С из токена\nв заголовке X-MCP-Token; ограничения доступа на уровне записей (RLS) не применяются."
+    }
+  ],
+  "paths": {
+    "/mcp/rpc": {
+      "post": {
+        "tags": [
+          "Бэкэнд API для MCP"
+        ],
+        "summary": "JSON-RPC 2.0: протокол MCP (initialize, tools/list, tools/call, resources, prompts)",
+        "description": "**Доступ.** Вызов `tools/call` проверяет пользователя 1С по токену из заголовка `X-MCP-Token`: токен вопроса выпускает форма 1С на время ответа модели, персональный токен для внешнего MCP-клиента выпускает администратор. Инструменты скрывают объекты, на которые у пользователя нет права чтения или использования, и отказывают в доступе к ним. Без токена `tools/call` работает, только если администратор разрешил это в настройках, и тогда права проверяются по пользователю публикации.\n\n**Коды ошибок JSON-RPC:**\n\n| Код | Когда |\n|---|---|\n| -32603 | Внутренняя ошибка сервера |\n| -32601 | Неизвестный метод |\n| -32600 | Неподдерживаемая версия JSON-RPC (не 2.0) |\n| -32001 | Доступ запрещен: нет токена, токен не найден, отозван или истек, пользователь токена недействителен или не имеет права задавать вопросы |\n\nОшибка самого инструмента приходит не кодом JSON-RPC, а в `result` с `isError: true` и текстом в `content`.\n\n**Инструменты (21):**\n\n*Данные о конфигурации (инструмент)*\n\n- `get_configuration_version` - Получение системной информации о компьютере и конфигурации (имя, версия конфигурации, версия платформы и т.д.)\n- `get_metadata_structure` - Получение структуры объекта метаданных (реквизиты, табличные части, измерения, ресурсы)\n- `get_report_list` - Получение списка отчетов конфигурации (встроенных и внешних) и их обязательных параметров. Внешние отмечаются как [Внешний отчет].\n- `list_metadata_objects` - Получение списка объектов метаданных конфигурации с возможностью фильтрации по типу и имени\n- `list_object_dependencies` - Анализ зависимостей объектов метаданных. Возвращает uses (что использует объект) и usedBy (где используется объект).\n\n*Инструмент: Данные по продажам*\n\n- `analyze_discounts` - Анализ предоставленных скидок\n- `analyze_plan_execution` - Анализ выполнения плана продаж\n- `analyze_receipts` - Анализ чеков: распределение по времени, средний чек\n- `analyze_returns` - Анализ возвратов товаров\n- `calculate_stock_turnover` - Расчет оборачиваемости товарных запасов\n- `get_daily_revenue` - Выручка по дням/неделям/месяцам\n- `get_low_stock_items` - Товары с остатком ниже критического уровня\n- `get_stock_balances` - Получение остатков товаров на складах магазинов\n- `get_top_products` - Топ товаров по продажам (выручка или количество)\n- `list_sale_param` - Получение списка продаж (чеков) с фильтрацией по периоду, магазину, кассе, кассиру\n\n*Инструмент: Для бухгалтерской работы*\n\n- `analyze_accounts_receivable` - Анализ дебиторской задолженности с разбивкой по срокам просрочки (aging report)\n- `calculate_product_margin` - Расчет маржинальности по товарам/группам (выручка, себестоимость, маржа, рентабельность)\n- `calculate_vat_liability` - Расчет налоговых обязательств по НДС за период\n- `get_account_turnovers` - Получение оборотов и остатков по счетам бухгалтерского учета за период\n- `get_cash_flow` - Анализ движения денежных средств по кассам и банковским счетам\n- `get_stock_turnover` - Расчет оборачиваемости товарных запасов (в днях и разах)",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonRpcRequest"
+              },
+              "examples": {
+                "initialize": {
+                  "summary": "Рукопожатие MCP",
+                  "value": {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "initialize",
+                    "params": {}
+                  }
+                },
+                "tools_list": {
+                  "summary": "Список инструментов",
+                  "value": {
+                    "jsonrpc": "2.0",
+                    "id": 2,
+                    "method": "tools/list",
+                    "params": {}
+                  }
+                },
+                "tools_call": {
+                  "summary": "Вызов инструмента",
+                  "value": {
+                    "jsonrpc": "2.0",
+                    "id": 3,
+                    "method": "tools/call",
+                    "params": {
+                      "name": "get_metadata_structure",
+                      "arguments": {
+                        "metaType": "Documents",
+                        "name": "ПеремещениеТоваров"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "description": "Запрос JSON-RPC 2.0 в кодировке UTF-8"
+        },
+        "responses": {
+          "200": {
+            "description": "Ответ JSON-RPC: result или error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonRpcResponse"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "Уведомление (запрос без id) принято, тела нет"
+          }
+        },
+        "security": [
+          {
+            "mcpToken": []
+          },
+          {}
+        ],
+        "operationId": "post_mcp_rpc"
+      }
+    },
+    "/mcp/health": {
+      "get": {
+        "tags": [
+          "Бэкэнд API для MCP"
+        ],
+        "summary": "Проверка доступности HTTP-сервиса",
+        "description": "Не требует токена и не обращается к данным базы.",
+        "responses": {
+          "200": {
+            "description": "HTTP-сервис работает",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "get_mcp_health"
+      }
+    },
+    "/mcp": {
+      "post": {
+        "tags": [
+          "Бэкэнд API для MCP"
+        ],
+        "summary": "MCP Streamable HTTP: тот же JSON-RPC, адрес для MCP-клиентов (Cursor, Claude Desktop)",
+        "description": "**Доступ.** Вызов `tools/call` проверяет пользователя 1С по токену из заголовка `X-MCP-Token`: токен вопроса выпускает форма 1С на время ответа модели, персональный токен для внешнего MCP-клиента выпускает администратор. Инструменты скрывают объекты, на которые у пользователя нет права чтения или использования, и отказывают в доступе к ним. Без токена `tools/call` работает, только если администратор разрешил это в настройках, и тогда права проверяются по пользователю публикации.\n\n**Коды ошибок JSON-RPC:**\n\n| Код | Когда |\n|---|---|\n| -32603 | Внутренняя ошибка сервера |\n| -32601 | Неизвестный метод |\n| -32600 | Неподдерживаемая версия JSON-RPC (не 2.0) |\n| -32001 | Доступ запрещен: нет токена, токен не найден, отозван или истек, пользователь токена недействителен или не имеет права задавать вопросы |\n\nОшибка самого инструмента приходит не кодом JSON-RPC, а в `result` с `isError: true` и текстом в `content`.\n\n**Инструменты (21):**\n\n*Данные о конфигурации (инструмент)*\n\n- `get_configuration_version` - Получение системной информации о компьютере и конфигурации (имя, версия конфигурации, версия платформы и т.д.)\n- `get_metadata_structure` - Получение структуры объекта метаданных (реквизиты, табличные части, измерения, ресурсы)\n- `get_report_list` - Получение списка отчетов конфигурации (встроенных и внешних) и их обязательных параметров. Внешние отмечаются как [Внешний отчет].\n- `list_metadata_objects` - Получение списка объектов метаданных конфигурации с возможностью фильтрации по типу и имени\n- `list_object_dependencies` - Анализ зависимостей объектов метаданных. Возвращает uses (что использует объект) и usedBy (где используется объект).\n\n*Инструмент: Данные по продажам*\n\n- `analyze_discounts` - Анализ предоставленных скидок\n- `analyze_plan_execution` - Анализ выполнения плана продаж\n- `analyze_receipts` - Анализ чеков: распределение по времени, средний чек\n- `analyze_returns` - Анализ возвратов товаров\n- `calculate_stock_turnover` - Расчет оборачиваемости товарных запасов\n- `get_daily_revenue` - Выручка по дням/неделям/месяцам\n- `get_low_stock_items` - Товары с остатком ниже критического уровня\n- `get_stock_balances` - Получение остатков товаров на складах магазинов\n- `get_top_products` - Топ товаров по продажам (выручка или количество)\n- `list_sale_param` - Получение списка продаж (чеков) с фильтрацией по периоду, магазину, кассе, кассиру\n\n*Инструмент: Для бухгалтерской работы*\n\n- `analyze_accounts_receivable` - Анализ дебиторской задолженности с разбивкой по срокам просрочки (aging report)\n- `calculate_product_margin` - Расчет маржинальности по товарам/группам (выручка, себестоимость, маржа, рентабельность)\n- `calculate_vat_liability` - Расчет налоговых обязательств по НДС за период\n- `get_account_turnovers` - Получение оборотов и остатков по счетам бухгалтерского учета за период\n- `get_cash_flow` - Анализ движения денежных средств по кассам и банковским счетам\n- `get_stock_turnover` - Расчет оборачиваемости товарных запасов (в днях и разах)",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonRpcRequest"
+              },
+              "examples": {
+                "initialize": {
+                  "summary": "Рукопожатие MCP",
+                  "value": {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "initialize",
+                    "params": {}
+                  }
+                },
+                "tools_list": {
+                  "summary": "Список инструментов",
+                  "value": {
+                    "jsonrpc": "2.0",
+                    "id": 2,
+                    "method": "tools/list",
+                    "params": {}
+                  }
+                },
+                "tools_call": {
+                  "summary": "Вызов инструмента",
+                  "value": {
+                    "jsonrpc": "2.0",
+                    "id": 3,
+                    "method": "tools/call",
+                    "params": {
+                      "name": "get_metadata_structure",
+                      "arguments": {
+                        "metaType": "Documents",
+                        "name": "ПеремещениеТоваров"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "description": "Запрос JSON-RPC 2.0 в кодировке UTF-8"
+        },
+        "responses": {
+          "200": {
+            "description": "Ответ JSON-RPC: result или error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonRpcResponse"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "Уведомление (запрос без id) принято, тела нет"
+          }
+        },
+        "security": [
+          {
+            "mcpToken": []
+          },
+          {}
+        ],
+        "operationId": "post_mcp"
+      },
+      "get": {
+        "tags": [
+          "Бэкэнд API для MCP"
+        ],
+        "summary": "Не поддерживается",
+        "description": "",
+        "responses": {
+          "405": {
+            "description": "Поток событий (SSE) не поддерживается: используйте POST"
+          }
+        },
+        "security": [],
+        "operationId": "get_mcp"
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Health": {
+        "type": "object",
+        "description": "Ответ проверки доступности",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "Состояние сервиса",
+            "example": "ok"
+          }
+        }
+      },
+      "JsonRpcError": {
+        "type": "object",
+        "description": "Ошибка JSON-RPC",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "description": "Код ошибки",
+            "example": -32001,
+            "enum": [
+              -32603,
+              -32601,
+              -32600,
+              -32001
+            ]
+          },
+          "message": {
+            "type": "string",
+            "description": "Текст ошибки для пользователя",
+            "example": "Доступ запрещен: срок действия токена истек"
+          }
+        }
+      },
+      "JsonRpcRequest": {
+        "type": "object",
+        "description": "Запрос JSON-RPC 2.0",
+        "required": [
+          "jsonrpc",
+          "method"
+        ],
+        "properties": {
+          "jsonrpc": {
+            "type": "string",
+            "description": "Версия протокола",
+            "example": "2.0"
+          },
+          "id": {
+            "type": "integer",
+            "description": "Идентификатор запроса. Запрос без id - уведомление, ответ 204 без тела",
+            "example": 1
+          },
+          "method": {
+            "type": "string",
+            "description": "Метод MCP",
+            "example": "tools/call",
+            "enum": [
+              "initialize",
+              "tools/list",
+              "tools/call",
+              "resources/list",
+              "resources/read",
+              "prompts/list",
+              "prompts/get"
+            ]
+          },
+          "params": {
+            "type": "object",
+            "description": "Параметры метода. Для tools/call - объект ToolCallParams",
+            "$ref": "#/components/schemas/ToolCallParams"
+          }
+        }
+      },
+      "JsonRpcResponse": {
+        "type": "object",
+        "description": "Ответ JSON-RPC 2.0: заполнено либо result, либо error",
+        "required": [
+          "jsonrpc",
+          "id"
+        ],
+        "properties": {
+          "jsonrpc": {
+            "type": "string",
+            "description": "Версия протокола",
+            "example": "2.0"
+          },
+          "id": {
+            "type": "integer",
+            "description": "Идентификатор из запроса",
+            "example": 1
+          },
+          "result": {
+            "type": "object",
+            "description": "Результат метода. У tools/call - content (массив блоков type/text) и признак isError"
+          },
+          "error": {
+            "type": "object",
+            "description": "Ошибка, если метод не выполнен",
+            "$ref": "#/components/schemas/JsonRpcError"
+          }
+        }
+      },
+      "ToolCallParams": {
+        "type": "object",
+        "description": "Параметры вызова инструмента",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Имя инструмента из tools/list",
+            "example": "get_configuration_version",
+            "enum": [
+              "analyze_accounts_receivable",
+              "analyze_discounts",
+              "analyze_plan_execution",
+              "analyze_receipts",
+              "analyze_returns",
+              "calculate_product_margin",
+              "calculate_stock_turnover",
+              "calculate_vat_liability",
+              "get_account_turnovers",
+              "get_cash_flow",
+              "get_configuration_version",
+              "get_daily_revenue",
+              "get_low_stock_items",
+              "get_metadata_structure",
+              "get_report_list",
+              "get_stock_balances",
+              "get_stock_turnover",
+              "get_top_products",
+              "list_metadata_objects",
+              "list_object_dependencies",
+              "list_sale_param"
+            ]
+          },
+          "arguments": {
+            "type": "object",
+            "description": "Аргументы инструмента: схема ToolArgs_<имя инструмента> в разделе Schemas"
+          }
+        }
+      },
+      "ToolArgs_analyze_accounts_receivable": {
+        "type": "object",
+        "properties": {
+          "analysisDate": {
+            "type": "string",
+            "description": "Дата анализа в формате ГГГГ-ММ-ДД"
+          },
+          "organization": {
+            "type": "string",
+            "description": "Организация"
+          },
+          "counterparties": {
+            "type": "string",
+            "description": "Список контрагентов через запятую (опционально)"
+          },
+          "agingBuckets": {
+            "type": "string",
+            "description": "Корзины старения в днях через запятую (например: 0,30,60,90)",
+            "default": "0,30,60,90,180"
+          }
+        },
+        "required": [
+          "analysisDate"
+        ],
+        "description": "Анализ дебиторской задолженности с разбивкой по срокам просрочки (aging report)\n\nКонтейнер: Инструмент: Для бухгалтерской работы"
+      },
+      "ToolArgs_analyze_discounts": {
+        "type": "object",
+        "properties": {
+          "periodStart": {
+            "type": "string",
+            "description": "Дата начала периода"
+          },
+          "periodEnd": {
+            "type": "string",
+            "description": "Дата окончания периода"
+          },
+          "store": {
+            "type": "string",
+            "description": "Магазин"
+          }
+        },
+        "required": [
+          "periodStart",
+          "periodEnd"
+        ],
+        "description": "Анализ предоставленных скидок\n\nКонтейнер: Инструмент: Данные по продажам"
+      },
+      "ToolArgs_analyze_plan_execution": {
+        "type": "object",
+        "properties": {
+          "period": {
+            "type": "string",
+            "description": "Период в формате ММ.ГГГГ"
+          },
+          "store": {
+            "type": "string",
+            "description": "Магазин"
+          }
+        },
+        "required": [
+          "period"
+        ],
+        "description": "Анализ выполнения плана продаж\n\nКонтейнер: Инструмент: Данные по продажам"
+      },
+      "ToolArgs_analyze_receipts": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "Дата анализа"
+          },
+          "store": {
+            "type": "string",
+            "description": "Магазин"
+          }
+        },
+        "required": [
+          "date"
+        ],
+        "description": "Анализ чеков: распределение по времени, средний чек\n\nКонтейнер: Инструмент: Данные по продажам"
+      },
+      "ToolArgs_analyze_returns": {
+        "type": "object",
+        "properties": {
+          "periodStart": {
+            "type": "string",
+            "description": "Дата начала периода"
+          },
+          "periodEnd": {
+            "type": "string",
+            "description": "Дата окончания периода"
+          },
+          "store": {
+            "type": "string",
+            "description": "Магазин"
+          }
+        },
+        "required": [
+          "periodStart",
+          "periodEnd"
+        ],
+        "description": "Анализ возвратов товаров\n\nКонтейнер: Инструмент: Данные по продажам"
+      },
+      "ToolArgs_calculate_product_margin": {
+        "type": "object",
+        "properties": {
+          "periodStart": {
+            "type": "string",
+            "description": "Дата начала периода"
+          },
+          "periodEnd": {
+            "type": "string",
+            "description": "Дата окончания периода"
+          },
+          "productGroups": {
+            "type": "string",
+            "description": "Группы товаров через запятую"
+          },
+          "groupBy": {
+            "type": "string",
+            "description": "Группировка: Номенклатура, Группа, Подразделение",
+            "default": "Номенклатура"
+          }
+        },
+        "required": [
+          "periodStart",
+          "periodEnd"
+        ],
+        "description": "Расчет маржинальности по товарам/группам (выручка, себестоимость, маржа, рентабельность)\n\nКонтейнер: Инструмент: Для бухгалтерской работы"
+      },
+      "ToolArgs_calculate_stock_turnover": {
+        "type": "object",
+        "properties": {
+          "period": {
+            "type": "string",
+            "description": "Период в месяцах для расчета",
+            "default": "1"
+          },
+          "store": {
+            "type": "string",
+            "description": "Магазин"
+          }
+        },
+        "description": "Расчет оборачиваемости товарных запасов\n\nКонтейнер: Инструмент: Данные по продажам"
+      },
+      "ToolArgs_calculate_vat_liability": {
+        "type": "object",
+        "properties": {
+          "period": {
+            "type": "string",
+            "description": "Период в формате ММ.ГГГГ или ГГГГ-ММ"
+          },
+          "organization": {
+            "type": "string",
+            "description": "Организация"
+          },
+          "includeDetails": {
+            "type": "boolean",
+            "description": "Включать детализацию по документам",
+            "default": false
+          }
+        },
+        "required": [
+          "period",
+          "organization"
+        ],
+        "description": "Расчет налоговых обязательств по НДС за период\n\nКонтейнер: Инструмент: Для бухгалтерской работы"
+      },
+      "ToolArgs_get_account_turnovers": {
+        "type": "object",
+        "properties": {
+          "periodStart": {
+            "type": "string",
+            "description": "Дата начала периода в формате ГГГГ-ММ-ДД"
+          },
+          "periodEnd": {
+            "type": "string",
+            "description": "Дата окончания периода в формате ГГГГ-ММ-ДД"
+          },
+          "accounts": {
+            "type": "string",
+            "description": "Номера счетов через запятую или диапазон (например: 60-62 или 50,51,52)"
+          },
+          "organization": {
+            "type": "string",
+            "description": "Код или наименование организации"
+          },
+          "currency": {
+            "type": "string",
+            "description": "Код валюты",
+            "default": "руб"
+          },
+          "detailLevel": {
+            "type": "string",
+            "description": "Уровень детализации: Счета, Субконто, Документы",
+            "default": "Счета"
+          }
+        },
+        "required": [
+          "periodStart",
+          "periodEnd"
+        ],
+        "description": "Получение оборотов и остатков по счетам бухгалтерского учета за период\n\nКонтейнер: Инструмент: Для бухгалтерской работы"
+      },
+      "ToolArgs_get_cash_flow": {
+        "type": "object",
+        "properties": {
+          "periodStart": {
+            "type": "string",
+            "description": "Дата начала периода"
+          },
+          "periodEnd": {
+            "type": "string",
+            "description": "Дата окончания периода"
+          },
+          "cashAccounts": {
+            "type": "string",
+            "description": "Счета денежных средств (например: 50,51,52,55)"
+          },
+          "organization": {
+            "type": "string",
+            "description": "Организация"
+          },
+          "groupBy": {
+            "type": "string",
+            "description": "Группировка: СтатьяДДС, Контрагент, Документ",
+            "default": "СтатьяДДС"
+          }
+        },
+        "required": [
+          "periodStart",
+          "periodEnd"
+        ],
+        "description": "Анализ движения денежных средств по кассам и банковским счетам\n\nКонтейнер: Инструмент: Для бухгалтерской работы"
+      },
+      "ToolArgs_get_configuration_version": {
+        "type": "object",
+        "properties": {
+          "configurationProperty": {
+            "type": "string",
+            "description": "Имя свойства конфигурации (необязательно). Если не задано - возвращаются все свойства. Имя выбирается из списка допустимых значений.",
+            "enum": [
+              "ОперационнаяСистема",
+              "ВерсияПлатформы",
+              "ОбъемОЗУ",
+              "Процессор",
+              "ТипПлатформы",
+              "Конфигурация",
+              "ВерсияКонфигурации",
+              "КраткаяИнформация",
+              "ПодробнаяИнформация",
+              "Поставщик",
+              "ИнформацияОПоставщике",
+              "ИнформацияОКонфигурации",
+              "АвторскиеПрава",
+              "ОсновнойЯзык"
+            ]
+          }
+        },
+        "description": "Получение системной информации о компьютере и конфигурации (имя, версия конфигурации, версия платформы и т.д.)\n\nКонтейнер: Данные о конфигурации (инструмент)"
+      },
+      "ToolArgs_get_daily_revenue": {
+        "type": "object",
+        "properties": {
+          "periodStart": {
+            "type": "string",
+            "description": "Дата начала периода"
+          },
+          "periodEnd": {
+            "type": "string",
+            "description": "Дата окончания периода"
+          },
+          "store": {
+            "type": "string",
+            "description": "Магазин"
+          },
+          "groupBy": {
+            "type": "string",
+            "description": "Группировка: День, Неделя, Месяц",
+            "default": "День"
+          }
+        },
+        "required": [
+          "periodStart",
+          "periodEnd"
+        ],
+        "description": "Выручка по дням/неделям/месяцам\n\nКонтейнер: Инструмент: Данные по продажам"
+      },
+      "ToolArgs_get_low_stock_items": {
+        "type": "object",
+        "properties": {
+          "store": {
+            "type": "string",
+            "description": "Магазин (склад)"
+          },
+          "criticalLevel": {
+            "type": "number",
+            "description": "Критический уровень остатка",
+            "default": 3
+          }
+        },
+        "description": "Товары с остатком ниже критического уровня\n\nКонтейнер: Инструмент: Данные по продажам"
+      },
+      "ToolArgs_get_metadata_structure": {
+        "type": "object",
+        "properties": {
+          "metaType": {
+            "type": "string",
+            "description": "Тип объекта метаданных",
+            "enum": [
+              "Catalogs",
+              "Documents",
+              "InformationRegisters",
+              "AccumulationRegisters",
+              "AccountingRegisters",
+              "CalculationRegisters",
+              "Reports",
+              "DataProcessors",
+              "ChartsOfCharacteristicTypes",
+              "ChartsOfAccounts",
+              "ChartsOfCalculationTypes",
+              "BusinessProcesses",
+              "Tasks",
+              "ExchangePlans"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": "Точное имя объекта метаданных (без учета регистра)"
+          }
+        },
+        "required": [
+          "metaType",
+          "name"
+        ],
+        "description": "Получение структуры объекта метаданных (реквизиты, табличные части, измерения, ресурсы)\n\nКонтейнер: Данные о конфигурации (инструмент)"
+      },
+      "ToolArgs_get_report_list": {
+        "type": "object",
+        "properties": {
+          "reportName": {
+            "type": "string",
+            "description": "Имя или часть имени отчета для фильтрации (опционально). Проверяется вхождение в имя, синоним и наименование."
+          },
+          "includeDescription": {
+            "type": "boolean",
+            "description": "Включать описание отчетов",
+            "default": false
+          },
+          "source": {
+            "type": "string",
+            "description": "Источник отчётов: All - все, Configuration - только встроенные, External - только внешние (из справочника ДополнительныеОтчетыИОбработки)",
+            "default": "All",
+            "enum": [
+              "All",
+              "Configuration",
+              "External"
+            ]
+          },
+          "includeParameters": {
+            "type": "boolean",
+            "description": "Читать обязательные параметры отчёта из его схемы компоновки данных (для конкретного отчёта по reportName). Для внешних отчётов работает только при выключенном безопасном режиме.",
+            "default": false
+          }
+        },
+        "description": "Получение списка отчетов конфигурации (встроенных и внешних) и их обязательных параметров. Внешние отмечаются как [Внешний отчет].\n\nКонтейнер: Данные о конфигурации (инструмент)"
+      },
+      "ToolArgs_get_stock_balances": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "Дата остатков в формате ГГГГ-ММ-ДД"
+          },
+          "store": {
+            "type": "string",
+            "description": "Магазин (склад)"
+          },
+          "itemGroup": {
+            "type": "string",
+            "description": "Группа товаров"
+          },
+          "showZeroBalance": {
+            "type": "boolean",
+            "description": "Показывать товары с нулевым остатком",
+            "default": false
+          }
+        },
+        "required": [
+          "date"
+        ],
+        "description": "Получение остатков товаров на складах магазинов\n\nКонтейнер: Инструмент: Данные по продажам"
+      },
+      "ToolArgs_get_stock_turnover": {
+        "type": "object",
+        "properties": {
+          "periodStart": {
+            "type": "string",
+            "description": "Дата начала периода"
+          },
+          "periodEnd": {
+            "type": "string",
+            "description": "Дата окончания периода"
+          },
+          "warehouses": {
+            "type": "string",
+            "description": "Склады через запятую"
+          },
+          "productGroups": {
+            "type": "string",
+            "description": "Группы товаров для анализа"
+          },
+          "turnoverType": {
+            "type": "string",
+            "description": "Тип оборачиваемости: Дни, Разы, Оба",
+            "default": "Оба"
+          }
+        },
+        "required": [
+          "periodStart",
+          "periodEnd"
+        ],
+        "description": "Расчет оборачиваемости товарных запасов (в днях и разах)\n\nКонтейнер: Инструмент: Для бухгалтерской работы"
+      },
+      "ToolArgs_get_top_products": {
+        "type": "object",
+        "properties": {
+          "periodStart": {
+            "type": "string",
+            "description": "Дата начала периода"
+          },
+          "periodEnd": {
+            "type": "string",
+            "description": "Дата окончания периода"
+          },
+          "topCount": {
+            "type": "number",
+            "description": "Количество позиций в топе",
+            "default": 10
+          },
+          "sortBy": {
+            "type": "string",
+            "description": "Сортировка: Выручка, Количество",
+            "default": "Выручка"
+          }
+        },
+        "required": [
+          "periodStart",
+          "periodEnd"
+        ],
+        "description": "Топ товаров по продажам (выручка или количество)\n\nКонтейнер: Инструмент: Данные по продажам"
+      },
+      "ToolArgs_list_metadata_objects": {
+        "type": "object",
+        "properties": {
+          "metaType": {
+            "type": "string",
+            "description": "Тип объекта метаданных",
+            "enum": [
+              "Catalogs",
+              "Documents",
+              "InformationRegisters",
+              "AccumulationRegisters",
+              "AccountingRegisters",
+              "CalculationRegisters",
+              "ChartsOfCharacteristicTypes",
+              "ChartsOfAccounts",
+              "ChartsOfCalculationTypes",
+              "BusinessProcesses",
+              "Tasks",
+              "ExchangePlans",
+              "FilterCriteria",
+              "Reports",
+              "DataProcessors",
+              "Enums",
+              "CommonModules",
+              "SessionParameters",
+              "CommonTemplates",
+              "CommonPictures",
+              "XDTOPackages",
+              "WebServices",
+              "HTTPServices",
+              "WSReferences",
+              "Styles",
+              "Languages",
+              "FunctionalOptions",
+              "FunctionalOptionsParameters",
+              "DefinedTypes",
+              "CommonAttributes",
+              "CommonCommands",
+              "CommandGroups",
+              "Constants",
+              "CommonForms",
+              "Roles",
+              "Subsystems",
+              "EventSubscriptions",
+              "ScheduledJobs",
+              "SettingsStorages",
+              "Sequences",
+              "DocumentJournals",
+              "ExternalDataSources",
+              "Interfaces"
+            ]
+          },
+          "nameMask": {
+            "type": "string",
+            "description": "Маска имени объекта. Проверяется на вхождение подстроки в имя или синоним объекта."
+          },
+          "maxItems": {
+            "type": "number",
+            "description": "Максимальное количество возвращаемых результатов",
+            "default": 100
+          }
+        },
+        "required": [
+          "metaType"
+        ],
+        "description": "Получение списка объектов метаданных конфигурации с возможностью фильтрации по типу и имени\n\nКонтейнер: Данные о конфигурации (инструмент)"
+      },
+      "ToolArgs_list_object_dependencies": {
+        "type": "object",
+        "properties": {
+          "objectName": {
+            "type": "string",
+            "description": "Имя объекта метаданных"
+          },
+          "objectType": {
+            "type": "string",
+            "description": "Имя коллекции метаданных во множественном числе: Documents, Catalogs, InformationRegisters, AccumulationRegisters, AccountingRegisters, CalculationRegisters, ChartsOfCharacteristicTypes, ChartsOfAccounts, ChartsOfCalculationTypes, BusinessProcesses, Tasks, ExchangePlans",
+            "enum": [
+              "Documents",
+              "Catalogs",
+              "InformationRegisters",
+              "AccumulationRegisters",
+              "AccountingRegisters",
+              "CalculationRegisters",
+              "ChartsOfCharacteristicTypes",
+              "ChartsOfAccounts",
+              "ChartsOfCalculationTypes",
+              "BusinessProcesses",
+              "Tasks",
+              "ExchangePlans"
+            ]
+          },
+          "maxItems": {
+            "type": "number",
+            "description": "Максимум связей в каждой группе uses/usedBy (по умолчанию 50)",
+            "default": 50
+          },
+          "scopeTypes": {
+            "type": "string",
+            "description": "Где искать использование (usedBy): имена коллекций через запятую, например Documents,AccumulationRegisters. Пусто - искать везде."
+          },
+          "scopeSubsystem": {
+            "type": "string",
+            "description": "Имя подсистемы для ограничения поиска usedBy (только объекты, входящие в неё, в т.ч. вложенные). Пусто - без ограничения."
+          }
+        },
+        "required": [
+          "objectName",
+          "objectType"
+        ],
+        "description": "Анализ зависимостей объектов метаданных. Возвращает uses (что использует объект) и usedBy (где используется объект).\n\nКонтейнер: Данные о конфигурации (инструмент)"
+      },
+      "ToolArgs_list_sale_param": {
+        "type": "object",
+        "properties": {
+          "periodStart": {
+            "type": "string",
+            "description": "Дата начала периода в формате ГГГГ-ММ-ДД"
+          },
+          "periodEnd": {
+            "type": "string",
+            "description": "Дата окончания периода в формате ГГГГ-ММ-ДД"
+          },
+          "store": {
+            "type": "string",
+            "description": "Код или наименование магазина"
+          },
+          "cashRegister": {
+            "type": "string",
+            "description": "Номер кассового аппарата (РМК)"
+          },
+          "cashier": {
+            "type": "string",
+            "description": "Код или ФИО кассира"
+          },
+          "maxItems": {
+            "type": "number",
+            "description": "Максимальное количество возвращаемых результатов",
+            "default": 100
+          }
+        },
+        "description": "Получение списка продаж (чеков) с фильтрацией по периоду, магазину, кассе, кассиру\n\nКонтейнер: Инструмент: Данные по продажам"
+      }
+    },
+    "securitySchemes": {
+      "mcpToken": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-MCP-Token",
+        "description": "Токен пользователя 1С: mcpt_ и 64 шестнадцатеричных символа. Токен вопроса выпускает форма 1С, персональный - администратор в настройках подключения к LLM."
+      }
+    }
+  }
+}

@@ -28,3 +28,8 @@ jobs:
 
       - name: Orchestrator tests
         run: python -m unittest tests.test_orchestrator -v
+
+      - name: Validate OpenAPI description
+        run: |
+          pip install openapi-spec-validator
+          python -c "import json; from openapi_spec_validator import validate; validate(json.load(open('docs/api/openapi.json', encoding='utf-8'))); print('docs/api/openapi.json: OK')"

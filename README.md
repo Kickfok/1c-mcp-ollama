@@ -17,6 +17,7 @@
 ![MCP](https://img.shields.io/badge/MCP-2025--03--26-6E56CF)
 ![Ollama](https://img.shields.io/badge/LLM-Ollama%20·%20qwen2.5--coder-1B1F3B?logo=ollama&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)
+[![OpenAPI](https://img.shields.io/badge/OpenAPI-3.0-6BA539?logo=openapiinitiative&logoColor=white)](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/Kickfok/1c-mcp-ollama/main/docs/api/openapi.json)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 [**Быстрый старт**](#-быстрый-старт) ·
@@ -24,6 +25,7 @@
 [Реальные прогоны](#-реальные-прогоны) ·
 [Как это работает](#-как-это-работает) ·
 [Инструменты](#-инструменты) ·
+[API (Swagger)](#-api-swagger) ·
 [Свой инструмент за 10 минут](#-свой-инструмент) ·
 [Идеи развития](#-идеи-развития)
 
@@ -395,6 +397,28 @@ sequenceDiagram
 > их как настоящие. Это шаблоны интерфейса для будущих реализаций: используйте их как образец или
 > исключите обработки из подсистемы `mcp_КонтейнерыИнструментов`. Параметры всех инструментов -
 > в [docs/TOOLS.md](docs/TOOLS.md).
+
+## 📘 API (Swagger)
+
+HTTP-сервис расширения (`mcp_APIBackend`) описан по OpenAPI 3.0: адреса `/mcp`, `/mcp/rpc` и
+`/mcp/health`, запрос и ответ JSON-RPC, заголовок `X-MCP-Token`, коды ошибок и схемы аргументов всех
+21 инструмента.
+
+| | |
+|---|---|
+| **Открыть в Swagger UI** | [petstore.swagger.io](<https://petstore.swagger.io/?url=https://raw.githubusercontent.com/Kickfok/1c-mcp-ollama/main/docs/api/openapi.json>) - интерактивно, без установки |
+| **Файл описания** | [docs/api/openapi.json](docs/api/openapi.json) - для Postman, Insomnia и генераторов клиентов |
+| **Локально** | [docs/api/index.html](docs/api/index.html) - откройте через любой HTTP-сервер (`python -m http.server` в `docs`) |
+
+В самой базе описание показывает расширение [swagger-1c](https://github.com/zerobig/swagger-1c):
+модуль `mcp_APIBackendОписание` отдает его в формате swagger-1c, а без установленного Swagger
+расширение работает как обычно. Страница - `http://<сервер>/<публикация>/hs/swagger/index.html`;
+пользователю публикации нужна роль `Swag_ОсновнаяРоль`, в публикации - флажок "Публиковать HTTP-сервисы
+расширений по умолчанию". Файл `openapi.json` собирается из этого же описания:
+
+```bash
+python tools/gen_openapi.py --base http://localhost/<публикация>
+```
 
 ## 🛠 Свой инструмент
 

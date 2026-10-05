@@ -5,7 +5,7 @@ name: Release
 #   git push origin v1.2.3
 # или вручную (Actions - Release - Run workflow) для уже существующего тега: файлы релиза
 # заменяются заново, описание обновляется.
-# Перед тегом соберите build/MCP_Сервер.cfe платформой 1С и обновите CHANGELOG.md:
+# Перед тегом соберите build/MCP_Сервер.cfe платформой 1С (tools/build_extension.ps1 -Dump) и обновите CHANGELOG.md:
 # в CI платформы нет, поэтому публикуется собранный файл из репозитория.
 
 on:
