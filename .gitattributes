@@ -39,16 +39,16 @@
 *.svg binary
 *.geom binary
 
-# Языки на GitHub (Linguist): кроме кода показывать разметку и данные, из которых состоит проект.
-# По умолчанию Linguist скрывает XML, YAML, JSON, Markdown и SVG, а docs/ и README считает документацией.
-*.xml linguist-detectable
-*.yml linguist-detectable
+# Языки на GitHub (Linguist): 1C Enterprise, Python, OpenAPI Specification v3 и HTML.
+# Метаданные выгрузки (XML), документация, CI, SVG и служебный скрипт сборки в статистику не входят.
+*.xml linguist-detectable=false
+*.md linguist-detectable=false
+*.svg linguist-detectable=false
+*.yml linguist-detectable=false
+*.ps1 linguist-detectable=false
+# OpenAPI-описание HTTP-сервиса (docs/api/openapi.json) считается языком OpenAPI Specification v3
 *.json linguist-detectable
-*.md linguist-detectable linguist-documentation=false
-*.svg linguist-detectable
 docs/** linguist-documentation=false
-# Конфигурация CI (YAML) - часть проекта, а не сторонний код
-.github/** linguist-vendored=false linguist-detectable
 # HTML-макет оформления ответа хранится в формате выгрузки 1С как Template.bin
 src/extension/DataProcessors/АнализКонфигурацииMCP/Templates/ОформлениеОтвета/Ext/Template.bin linguist-language=HTML linguist-detectable
 # Копия оркестратора в макете обработки и собранное расширение - не считать дважды
