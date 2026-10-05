@@ -25,7 +25,7 @@ from urllib.parse import urlparse, parse_qs
 import requests
 import urllib3
 
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 
 # ================== НАСТРОЙКИ ==================
 # Порядок: значение по умолчанию, затем файл конфигурации (--config), затем переменная окружения.
