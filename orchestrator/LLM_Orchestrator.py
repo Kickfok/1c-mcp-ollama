@@ -19,13 +19,13 @@ import uuid
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from hashlib import sha1
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any, List, Tuple
 from urllib.parse import urlparse, parse_qs
 
 import requests
 import urllib3
 
-VERSION = "1.2.1"
+VERSION = "1.3.0"
 
 # ================== НАСТРОЙКИ ==================
 # Порядок: значение по умолчанию, затем файл конфигурации (--config), затем переменная окружения.
@@ -98,6 +98,8 @@ def apply_settings(values: Dict[str, Any]):
 apply_settings(read_settings({}))
 
 MAX_STEPS = 15
+# Сколько повторов одного и того же вызова подряд отклоняется, прежде чем вопрос завершается ошибкой
+MAX_REJECTED_REPEATS = 3
 LLM_TIMEOUT = 1800
 MCP_TIMEOUT = 30
 LLM_MAX_RETRIES = 3
@@ -271,6 +273,12 @@ SYSTEM_PROMPT = """
 - Если данных достаточно — возвращай финальный ответ
 - Используй точные названия инструментов из списка доступных
 - Не повторяй одинаковые вызовы инструментов
+- Если готового инструмента для вопроса нет, составь запрос на языке запросов 1С: узнай имена полей
+  через get_metadata_structure, найди образец через find_report_queries, проверь текст через
+  validate_query и выполни run_query. Пиши запрос только по-русски (ВЫБРАТЬ, ИЗ, ГДЕ)
+- list_metadata_objects и get_metadata_structure описывают конфигурацию (какие есть справочники и их
+  реквизиты), а не записи базы. Вопрос о записях (перечисли контрагентов, сколько документов, какая
+  сумма) требует run_query
 """
 
 
@@ -339,18 +347,13 @@ def normalize_llm_response(data: Any) -> Any:
     if action == 'final':
         return data
 
-    # Унифицируем имена полей с аргументами и именем инструмента.
-    args = None
-    for key in ('arguments', 'parameters', 'args', 'params'):
-        if key in data and isinstance(data[key], dict):
-            args = data[key]
-            break
-
     name = None
     for key in ('name', 'tool', 'tool_name', 'toolName'):
         if key in data and isinstance(data[key], str):
             name = data[key]
             break
+
+    args = normalized_arguments(data)
 
     # Случай: action содержит имя инструмента (не "call_tool"/"final"),
     # а рядом лежат параметры -> это вызов инструмента.
@@ -374,6 +377,26 @@ def normalize_llm_response(data: Any) -> Any:
         return {"action": "call_tool", "name": name, "arguments": args if args is not None else {}}
 
     return data
+
+
+def normalized_arguments(data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Аргументы вызова из ответа модели. Модель кладет их в "arguments", называет иначе ("parameters", "args",
+    "params") или пишет прямо рядом с action: {"action": "run_query", "query": "ВЫБРАТЬ ..."}. Если рядом с
+    action есть свои поля, "parameters" считается аргументом инструмента (у run_query есть такой параметр),
+    а не контейнером аргументов."""
+    if isinstance(data.get('arguments'), dict):
+        return data['arguments']
+    service_keys = {'action', 'name', 'tool', 'tool_name', 'toolName', 'arguments', 'args', 'params', 'parameters',
+                    'Text', 'Result'}
+    top_level = {k: v for k, v in data.items() if k not in service_keys}
+    if top_level:
+        if 'parameters' in data:
+            top_level['parameters'] = data['parameters']
+        return top_level
+    for key in ('parameters', 'args', 'params'):
+        if isinstance(data.get(key), dict):
+            return data[key]
+    return None
 
 
 def validate_json_structure(data: Dict[str, Any]) -> bool:
@@ -858,95 +881,109 @@ def call_llm(prompt: str) -> Dict[str, Any]:
 
 
 # ================== PROMPT ==================
-def build_prompt(messages, tools, include_tools):
+def build_prompt(messages, tools, include_tools, instructions: Optional[str] = None):
     parts = [SYSTEM_PROMPT.strip()]
+    if instructions:
+        parts.append("ЗАМЕТКИ АДМИНИСТРАТОРА ОБ ЭТОЙ БАЗЕ (учитывай при выборе объектов и инструментов):\n"
+                     + instructions)
     
     if include_tools and tools:
         parts.append("ДОСТУПНЫЕ ИНСТРУМЕНТЫ:")
-        for t in tools.values():
-            tool_desc = f"{t['name']}: {t.get('description', 'Без описания')}"
-            input_schema = t.get('inputSchema', {})
-            # Компактный список параметров вместо полной JSON-схемы.
-            # Полная схема раздувала промпт больше чем до 4000 токенов, и он обрезался при
-            # контексте 4096. Поэтому выводим только имя, тип, обязательность и enum,
-            # если он есть: этого модели достаточно для правильного вызова.
-            props = input_schema.get('properties') if isinstance(input_schema, dict) else None
-            if isinstance(props, dict) and props:
-                required = set(input_schema.get('required', []) or [])
-                param_strs = []
-                for pname, pinfo in props.items():
-                    pinfo = pinfo if isinstance(pinfo, dict) else {}
-                    ptype = pinfo.get('type', '')
-                    mark = '*' if pname in required else ''  # * = обязательный
-                    enum = pinfo.get('enum')
-                    if enum:
-                        # перечисление сокращаем, если длинное
-                        enum_preview = ','.join(str(e) for e in enum[:8])
-                        if len(enum) > 8:
-                            enum_preview += ',...'
-                        param_strs.append(f"{pname}{mark}({ptype}:{enum_preview})")
-                    else:
-                        param_strs.append(f"{pname}{mark}({ptype})")
-                tool_desc += "\n  Параметры: " + ", ".join(param_strs)
-            parts.append(tool_desc)
-    
+        parts.extend(tool_prompt_line(t) for t in tools.values())
+    elif tools:
+        # После первого шага описания не повторяются ради контекста, но имена и параметры нужны: без них
+        # модель вызывает инструменты с пустыми или выдуманными аргументами
+        parts.append("ИНСТРУМЕНТЫ (имя и параметры, * - обязательный):\n"
+                     + "\n".join(tool_prompt_line(t, with_description=False) for t in tools.values()))
+
     for m in messages:
         if m["role"] == "user":
             parts.append(f"ВОПРОС ПОЛЬЗОВАТЕЛЯ:\n{m['content']}")
         elif m["role"] == "tool":
-            content = m['content']
-            
-            # Форматируем результат для лучшей читаемости
-            if isinstance(content, dict):
-                # Если есть ошибка, выделяем ее
-                if content.get('isError', False):
-                    parts.append("РЕЗУЛЬТАТ ИНСТРУМЕНТА (ОШИБКА):")
-                    
-                    # Извлекаем текст ошибки если есть
-                    error_text = ""
-                    if 'content' in content and isinstance(content['content'], list) and len(content['content']) > 0:
-                        first_item = content['content'][0]
-                        if isinstance(first_item, dict) and 'text' in first_item:
-                            error_text = first_item['text']
-                    
-                    if error_text:
-                        parts.append(f"Сообщение об ошибке: {error_text[:500]}")
-                    else:
-                        parts.append(json.dumps(content, ensure_ascii=False, indent=2))
-                    
-                    # Добавляем подсказку для LLM
-                    parts.append("ВНИМАНИЕ: Инструмент вернул ошибку. Проверь правильность аргументов.")
-                
-                # Если это список объектов, показываем в удобном формате
-                elif 'content' in content and isinstance(content['content'], list):
-                    obj_list = content['content']
-                    
-                    # Проверяем, есть ли текстовое содержимое
-                    if len(obj_list) > 0 and isinstance(obj_list[0], dict) and 'text' in obj_list[0]:
-                        # Это текстовый ответ от 1С
-                        text_content = obj_list[0]['text']
-                        parts.append(f"РЕЗУЛЬТАТ ИНСТРУМЕНТА:\n{text_content}")
-                    else:
-                        parts.append(f"РЕЗУЛЬТАТ ИНСТРУМЕНТА (найдено {len(obj_list)} объектов):")
-                        
-                        # Показываем первые 10 объектов для наглядности
-                        for i, item in enumerate(obj_list[:10], 1):
-                            if isinstance(item, dict):
-                                name = item.get('name', item.get('title', 'Без названия'))
-                                parts.append(f"{i}. {name}")
-                            else:
-                                parts.append(f"{i}. {item}")
-                        
-                        if len(obj_list) > 10:
-                            parts.append(f"... и еще {len(obj_list) - 10} объектов")
-                else:
-                    parts.append(f"РЕЗУЛЬТАТ ИНСТРУМЕНТА:\n{json.dumps(content, ensure_ascii=False, indent=2)}")
-            else:
-                parts.append(f"РЕЗУЛЬТАТ ИНСТРУМЕНТА:\n{json.dumps(content, ensure_ascii=False, indent=2)}")
-    
+            parts.extend(tool_result_prompt(m['content'], m.get('tool')))
+
     parts.append("\n" + "="*50 + "\nТВОЙ ОТВЕТ (ТОЛЬКО JSON, помни про формат с Text и Result):")
-    
+
     return "\n\n".join(parts)
+
+
+def tool_prompt_line(tool: Dict[str, Any], with_description: bool = True) -> str:
+    """Описание инструмента для промпта: имя, описание и компактный список параметров. Без описания -
+    одна строка "имя(параметры)" для шагов после первого.
+
+    Полная JSON-схема раздувала промпт больше чем до 4000 токенов, и он обрезался при контексте 4096.
+    Поэтому выводятся только имя, тип, обязательность (*) и enum, если он есть: этого модели достаточно
+    для правильного вызова."""
+    input_schema = tool.get('inputSchema', {})
+    props = input_schema.get('properties') if isinstance(input_schema, dict) else None
+    param_strs = []
+    if isinstance(props, dict):
+        required = set(input_schema.get('required', []) or [])
+        param_strs = [tool_param_prompt(pname, pinfo, pname in required) for pname, pinfo in props.items()]
+    if not with_description:
+        return f"{tool['name']}({', '.join(param_strs)})"
+    tool_desc = f"{tool['name']}: {tool.get('description', 'Без описания')}"
+    if not param_strs:
+        return tool_desc
+    return tool_desc + "\n  Параметры: " + ", ".join(param_strs)
+
+
+def tool_param_prompt(pname: str, pinfo: Any, required: bool) -> str:
+    """Параметр инструмента для промпта: имя*(тип) или имя*(тип:значения enum), длинный enum сокращается."""
+    pinfo = pinfo if isinstance(pinfo, dict) else {}
+    ptype = pinfo.get('type', '')
+    mark = '*' if required else ''
+    enum = pinfo.get('enum')
+    if not enum:
+        return f"{pname}{mark}({ptype})"
+    enum_preview = ','.join(str(e) for e in enum[:8])
+    if len(enum) > 8:
+        enum_preview += ',...'
+    return f"{pname}{mark}({ptype}:{enum_preview})"
+
+
+# Инструменты, которые описывают конфигурацию, а не записи базы. После их ответа модель склонна переписать
+# описание в Result даже на вопрос о данных, поэтому к результату добавляется подсказка про run_query.
+METADATA_TOOLS = {"list_metadata_objects", "get_metadata_structure"}
+METADATA_HINT = ("ПОДСКАЗКА: это описание конфигурации, а не записи базы. Если вопрос о записях (список, "
+                 "количество, суммы), вызови run_query с полями из этого описания. Если вопрос о составе "
+                 "объекта, дай финальный ответ.")
+
+
+def tool_result_prompt(content: Any, tool: Optional[str] = None) -> List[str]:
+    """Результат инструмента для промпта: ошибка выделяется подсказкой, текст 1С выводится как есть, список
+    объектов - первыми 10 именами. После описания конфигурации добавляется подсказка про run_query."""
+    if not isinstance(content, dict):
+        return [f"РЕЗУЛЬТАТ ИНСТРУМЕНТА:\n{json.dumps(content, ensure_ascii=False, indent=2)}"]
+    items = content.get('content')
+    if content.get('isError', False):
+        return tool_error_prompt(content, items)
+    if not isinstance(items, list):
+        return [f"РЕЗУЛЬТАТ ИНСТРУМЕНТА:\n{json.dumps(content, ensure_ascii=False, indent=2)}"]
+    if items and isinstance(items[0], dict) and 'text' in items[0]:
+        lines = [f"РЕЗУЛЬТАТ ИНСТРУМЕНТА:\n{items[0]['text']}"]
+        if tool in METADATA_TOOLS and "run_query" in AVAILABLE_TOOLS:
+            lines.append(METADATA_HINT)
+        return lines
+    lines = [f"РЕЗУЛЬТАТ ИНСТРУМЕНТА (найдено {len(items)} объектов):"]
+    for i, item in enumerate(items[:10], 1):
+        name = item.get('name', item.get('title', 'Без названия')) if isinstance(item, dict) else item
+        lines.append(f"{i}. {name}")
+    if len(items) > 10:
+        lines.append(f"... и еще {len(items) - 10} объектов")
+    return lines
+
+
+def tool_error_prompt(content: Dict[str, Any], items: Any) -> List[str]:
+    """Ошибка инструмента для промпта: текст ошибки и указание исправить аргументы, а не выдумывать данные."""
+    error_text = ""
+    if isinstance(items, list) and items and isinstance(items[0], dict) and 'text' in items[0]:
+        error_text = items[0]['text']
+    detail = f"Сообщение об ошибке: {error_text[:500]}" if error_text \
+        else json.dumps(content, ensure_ascii=False, indent=2)
+    return ["РЕЗУЛЬТАТ ИНСТРУМЕНТА (ОШИБКА):", detail,
+            "ВНИМАНИЕ: Инструмент вернул ошибку. Исправь аргументы и повтори вызов. Не выдумывай данные: "
+            "если получить их не удалось, так и напиши в Text."]
 
 
 def hash_tool_call(name, args):
@@ -1497,6 +1534,8 @@ MONITOR_HTML = r"""<!doctype html>
 # ================== ЗАПРОСЫ ==================
 MAX_BODY_BYTES = 1_000_000
 MAX_QUESTION_CHARS = 20000
+# Заметки администратора о базе входят в промпт каждого шага: контекст модели 4096 токенов.
+MAX_INSTRUCTIONS_CHARS = 1500
 # Сколько вопросов обрабатывается одновременно. Ollama отвечает по очереди, поэтому больше
 # не нужно, а лимит защищает от переполнения потоками.
 MAX_ACTIVE_REQUESTS = 4
@@ -1520,10 +1559,12 @@ class RequestRejected(Exception):
 class QuestionRequest:
     """Вопрос пользователя 1С и состояние его обработки."""
 
-    def __init__(self, request_id: str, text: str, user: Optional[str], mcp_token: Optional[str]):
+    def __init__(self, request_id: str, text: str, user: Optional[str], mcp_token: Optional[str],
+                 instructions: Optional[str] = None):
         self.id = request_id
         self.text = text
         self.user = user
+        self.instructions = instructions
         # Токен пользователя 1С нужен только на время обработки и наружу не отдается.
         self.mcp_token = mcp_token
         self.status = "running"
@@ -1559,7 +1600,7 @@ class RequestRegistry:
             return sum(1 for r in self._items.values() if r.status == "running")
 
     def create(self, text: str, user: Optional[str], mcp_token: Optional[str],
-               request_id: Optional[str] = None) -> QuestionRequest:
+               request_id: Optional[str] = None, instructions: Optional[str] = None) -> QuestionRequest:
         with self._lock:
             if sum(1 for r in self._items.values() if r.status == "running") >= MAX_ACTIVE_REQUESTS:
                 raise RequestRejected(429, "busy", f"Оркестратор уже обрабатывает {MAX_ACTIVE_REQUESTS} вопроса, "
@@ -1567,7 +1608,7 @@ class RequestRegistry:
             request_id = request_id or uuid.uuid4().hex
             if request_id in self._items:
                 raise RequestRejected(409, "duplicate_request_id", "Запрос с таким идентификатором уже есть")
-            rec = QuestionRequest(request_id, text, user, mcp_token)
+            rec = QuestionRequest(request_id, text, user, mcp_token, instructions)
             self._items[request_id] = rec
             finished = [k for k, r in self._items.items() if r.status != "running"]
             for k in finished[:max(0, len(finished) - KEEP_FINISHED_REQUESTS)]:
@@ -1613,6 +1654,18 @@ def clean_mcp_token(value: Any) -> Optional[str]:
     return value.strip()
 
 
+def clean_instructions(value: Any) -> Optional[str]:
+    """Заметки администратора о базе: без управляющих символов, кроме переводов строк и табуляции."""
+    if value in (None, ""):
+        return None
+    if not isinstance(value, str):
+        raise RequestRejected(400, "bad_request", "Поле instructions должно быть строкой")
+    value = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", " ", value).strip()
+    if len(value) > MAX_INSTRUCTIONS_CHARS:
+        raise RequestRejected(400, "bad_request", f"Заметки для модели длиннее {MAX_INSTRUCTIONS_CHARS} символов")
+    return value or None
+
+
 def new_request(data: Dict[str, Any]) -> QuestionRequest:
     """Проверяет тело вопроса и регистрирует запрос."""
     text = data.get("text")
@@ -1621,7 +1674,7 @@ def new_request(data: Dict[str, Any]) -> QuestionRequest:
     if len(text) > MAX_QUESTION_CHARS:
         raise RequestRejected(400, "bad_request", f"Вопрос длиннее {MAX_QUESTION_CHARS} символов")
     return REQUESTS.create(text, clean_user(data.get("user")), clean_mcp_token(data.get("mcp_token")),
-                           clean_request_id(data.get("request_id")))
+                           clean_request_id(data.get("request_id")), clean_instructions(data.get("instructions")))
 
 
 class ToolDialog:
@@ -1630,11 +1683,10 @@ class ToolDialog:
     def __init__(self, text: str):
         self.messages = [{"role": "user", "content": text}]
         self.used_calls = set()
-        self.last_call_hash = None          # хэш предыдущего вызова (имя + аргументы)
-        self.repeat_guard = 0
+        self.rejected_repeats = 0           # отклоненные повторы подряд
 
-    def reply(self, content: Any):
-        self.messages.append({"role": "tool", "content": content})
+    def reply(self, content: Any, tool: Optional[str] = None):
+        self.messages.append({"role": "tool", "content": content, "tool": tool})
 
     def call_tool(self, answer: Dict[str, Any], step: int) -> Optional[Tuple[int, Dict[str, Any]]]:
         """Вызывает инструмент, который запросила модель, и кладет результат в историю.
@@ -1647,21 +1699,23 @@ class ToolDialog:
             self.reply({"error": "НЕИЗВЕСТНЫЙ_ИНСТРУМЕНТ", "доступные_инструменты": list(AVAILABLE_TOOLS.keys())})
             return None
 
+        # Повтором считаем только одинаковый вызов (то же имя и те же аргументы).
+        # Разные аргументы при одном инструменте - нормальный последовательный опрос.
         call_hash = hash_tool_call(tool, args)
         if call_hash in self.used_calls:
+            self.rejected_repeats += 1
+            if self.rejected_repeats >= MAX_REJECTED_REPEATS:
+                logger.warning(f"Зацикливание на инструменте: {tool}")
+                return 200, create_error_response("LLM зациклился на инструменте", "loop_detected",
+                                                  {"tool": tool, "steps": step}, False)
             trace("warning", f"Повторный вызов {tool} с теми же аргументами отклонен",
                   logging.WARNING, tool=tool, arguments=args)
-            self.reply({"error": "ПОВТОРНЫЙ_ВЫЗОВ", "инструмент": tool})
+            self.reply({"error": "ПОВТОРНЫЙ_ВЫЗОВ", "инструмент": tool,
+                        "подсказка": "Этот вызов с этими аргументами уже выполнен, его результат выше. "
+                                     "Измени аргументы (например, исправь запрос) или дай финальный ответ"})
             return None
 
-        # Повтором считаем только одинаковый вызов (то же имя И те же аргументы).
-        # Разные аргументы при одном инструменте - нормальный последовательный опрос.
-        self.repeat_guard = self.repeat_guard + 1 if self.last_call_hash == call_hash else 0
-        if self.repeat_guard >= 3:
-            logger.warning(f"Зацикливание на инструменте: {tool}")
-            return 200, create_error_response("LLM зациклился на инструменте", "loop_detected",
-                                              {"tool": tool, "steps": step}, False)
-        self.last_call_hash = call_hash
+        self.rejected_repeats = 0
         self.used_calls.add(call_hash)
 
         trace("tool_call", f"Вызов инструмента: {tool} с аргументами: {args}",
@@ -1679,7 +1733,7 @@ class ToolDialog:
               chars=full_length, truncated=full_length > MAX_TOOL_RESULT_CHARS,
               is_error=bool(result.get("isError")) if isinstance(result, dict) else False,
               preview=tool_result_preview(result)[:TRACE_PREVIEW_CHARS])
-        self.reply(result)
+        self.reply(result, tool)
         return None
 
 
@@ -1704,7 +1758,8 @@ def answer_question(rec: QuestionRequest) -> Tuple[int, Dict[str, Any]]:
             return 200, create_error_response("Запрос отменен", "cancelled", {"steps": step - 1}, False)
         rec.steps = step
 
-        prompt = build_prompt(dialog.messages, AVAILABLE_TOOLS, include_tools=(step == 1))
+        prompt = build_prompt(dialog.messages, AVAILABLE_TOOLS, include_tools=(step == 1),
+                              instructions=rec.instructions)
         trace("llm_start", f"Шаг {step}: модель формирует ответ", step=step, prompt_chars=len(prompt))
         _context.llm_stats = None
         llm_started = time.time()

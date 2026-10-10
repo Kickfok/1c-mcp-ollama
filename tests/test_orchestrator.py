@@ -76,10 +76,14 @@ class FakeServer:
         self.server.server_close()
 
 
+PROMPTS = []
+
+
 def fake_ollama(method, path, headers, body):
     if path in ("/api/tags", "/api/ps"):
         return 200, {"models": [{"name": MODEL}]}
     prompt = body["prompt"]
+    PROMPTS.append(prompt)
     question = prompt.split("ВОПРОС ПОЛЬЗОВАТЕЛЯ:")[-1]
     if "SLOW" in question:
         time.sleep(1.5)
@@ -283,6 +287,26 @@ class OrchestratorTests(unittest.TestCase):
         r = self.orch.call("POST", "/requests", CLIENT_KEY, json={"text": "x" * 20001})
         self.assertEqual(r.status_code, 400)
 
+    def test_instructions_reach_prompt(self):
+        note = "Основной склад - Центральный"
+        r = self.orch.call("POST", "/requests", CLIENT_KEY,
+                           json={"text": "Какие остатки на складе?", "mcp_token": GOOD_TOKEN, "instructions": note})
+        self.assertEqual(r.status_code, 202, r.text)
+        wait_done(self.orch, r.json()["request_id"], CLIENT_KEY)
+        prompts = [p for p in PROMPTS if "Какие остатки на складе?" in p]
+        self.assertTrue(prompts)
+        self.assertTrue(all("ЗАМЕТКИ АДМИНИСТРАТОРА" in p and note in p for p in prompts),
+                        "заметки должны входить в промпт каждого шага")
+
+        later = [p for p in prompts if "РЕЗУЛЬТАТ ИНСТРУМЕНТА" in p]
+        self.assertTrue(later, "нет промпта второго шага")
+        self.assertTrue(all("get_configuration_version(configurationProperty(string))" in p for p in later),
+                        "после первого шага модель должна видеть имена и параметры инструментов")
+
+        for bad in ("x" * 1501, 123):
+            r = self.orch.call("POST", "/requests", CLIENT_KEY, json={"text": "x", "instructions": bad})
+            self.assertEqual(r.status_code, 400, bad)
+
     def test_sync_request_returns_trace(self):
         r = self.orch.call("POST", "/", CLIENT_KEY, json={"text": "Версия?", "mcp_token": GOOD_TOKEN})
         body = r.json()
@@ -331,6 +355,87 @@ class OrchestratorTests(unittest.TestCase):
             self.assertEqual(orch.call("GET", "/tools", CLIENT_KEY).status_code, 429)
         finally:
             orch.stop()
+
+
+class NormalizeTests(unittest.TestCase):
+    """Приведение ответа модели к формату call_tool/final."""
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, os.path.dirname(ORCHESTRATOR))
+        import LLM_Orchestrator
+        cls.normalize = staticmethod(LLM_Orchestrator.normalize_llm_response)
+
+    def test_canonical_call_is_kept(self):
+        call = {"action": "call_tool", "name": "run_query", "arguments": {"query": "ВЫБРАТЬ 1"}}
+        self.assertEqual(self.normalize(call), call)
+
+    def test_arguments_beside_action(self):
+        self.assertEqual(self.normalize({"action": "run_query", "query": "ВЫБРАТЬ 1"}),
+                         {"action": "call_tool", "name": "run_query", "arguments": {"query": "ВЫБРАТЬ 1"}})
+
+    def test_tool_parameter_named_parameters(self):
+        answer = {"action": "run_query", "query": "ВЫБРАТЬ &Д", "parameters": {"Д": "2026-01-01"}}
+        self.assertEqual(self.normalize(answer)["arguments"],
+                         {"query": "ВЫБРАТЬ &Д", "parameters": {"Д": "2026-01-01"}})
+
+    def test_parameters_as_arguments_container(self):
+        self.assertEqual(self.normalize({"action": "get_metadata_structure", "parameters": {"name": "Склады"}}),
+                         {"action": "call_tool", "name": "get_metadata_structure", "arguments": {"name": "Склады"}})
+
+    def test_final_is_kept(self):
+        final = {"action": "final", "Text": "Готово", "Result": {}}
+        self.assertEqual(self.normalize(final), final)
+
+
+class RepeatCallTests(unittest.TestCase):
+    """Модель повторяет один и тот же вызов: повтор отклоняется, серия повторов завершает вопрос."""
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, os.path.dirname(ORCHESTRATOR))
+        import LLM_Orchestrator
+        cls.orch = LLM_Orchestrator
+
+    def setUp(self):
+        self.saved_tools = dict(self.orch.AVAILABLE_TOOLS)
+        self.saved_call = self.orch.mcp_call_tool
+        self.orch.AVAILABLE_TOOLS.clear()
+        self.orch.AVAILABLE_TOOLS["list_metadata_objects"] = {"name": "list_metadata_objects"}
+        self.orch.mcp_call_tool = lambda tool, args: {"content": [{"type": "text", "text": "ок"}]}
+
+    def tearDown(self):
+        self.orch.AVAILABLE_TOOLS.clear()
+        self.orch.AVAILABLE_TOOLS.update(self.saved_tools)
+        self.orch.mcp_call_tool = self.saved_call
+
+    def test_repeats_stop_the_question(self):
+        dialog = self.orch.ToolDialog("вопрос")
+        call = {"action": "call_tool", "name": "list_metadata_objects", "arguments": {"metaType": "Catalogs"}}
+        self.assertIsNone(dialog.call_tool(call, 1))
+        for step in range(2, 1 + self.orch.MAX_REJECTED_REPEATS):
+            self.assertIsNone(dialog.call_tool(call, step))
+            self.assertEqual(dialog.messages[-1]["content"]["error"], "ПОВТОРНЫЙ_ВЫЗОВ")
+        stop = dialog.call_tool(call, 1 + self.orch.MAX_REJECTED_REPEATS)
+        self.assertIsNotNone(stop)
+        self.assertEqual(stop[1]["Result"]["error_type"], "loop_detected")
+
+    def test_new_call_resets_repeats(self):
+        dialog = self.orch.ToolDialog("вопрос")
+        first = {"action": "call_tool", "name": "list_metadata_objects", "arguments": {"metaType": "Catalogs"}}
+        other = {"action": "call_tool", "name": "list_metadata_objects", "arguments": {"metaType": "Documents"}}
+        dialog.call_tool(first, 1)
+        dialog.call_tool(first, 2)
+        dialog.call_tool(other, 3)
+        for step in range(4, 3 + self.orch.MAX_REJECTED_REPEATS):
+            self.assertIsNone(dialog.call_tool(first, step))
+
+    def test_metadata_result_suggests_run_query(self):
+        result = {"content": [{"type": "text", "text": "Структура объекта Справочник.Пользователи"}]}
+        self.assertNotIn(self.orch.METADATA_HINT, self.orch.tool_result_prompt(result, "get_metadata_structure"))
+        self.orch.AVAILABLE_TOOLS["run_query"] = {"name": "run_query"}
+        self.assertIn(self.orch.METADATA_HINT, self.orch.tool_result_prompt(result, "get_metadata_structure"))
+        self.assertNotIn(self.orch.METADATA_HINT, self.orch.tool_result_prompt(result, "get_report_list"))
 
 
 class StartupTests(unittest.TestCase):

@@ -424,6 +424,45 @@
 						</UsualGroup>
 					</ChildItems>
 				</Page>
+				<Page name="СтраницаЗаметки" id="149">
+					<Title>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Заметки для модели</v8:content>
+						</v8:item>
+					</Title>
+					<ExtendedTooltip name="СтраницаЗаметкиРасширеннаяПодсказка" id="150"/>
+					<ChildItems>
+						<LabelDecoration name="ПояснениеЗаметки" id="151">
+							<Title formatted="false">
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Сведения о базе, которые модель получает с каждым вопросом: основные организации и склады, где искать выручку и остатки, как в вашей конфигурации называются нужные объекты. Не более 1500 символов: заметки занимают место в контексте модели. Внешние MCP-клиенты (Cursor, Claude Desktop) получают их в поле instructions ответа initialize.</v8:content>
+								</v8:item>
+							</Title>
+							<Width>100</Width>
+							<ContextMenu name="ПояснениеЗаметкиКонтекстноеМеню" id="152"/>
+							<ExtendedTooltip name="ПояснениеЗаметкиРасширеннаяПодсказка" id="153"/>
+						</LabelDecoration>
+						<InputField name="ЗаметкиДляМодели" id="154">
+							<DataPath>ЗаметкиДляМодели</DataPath>
+							<TitleLocation>None</TitleLocation>
+							<MultiLine>true</MultiLine>
+							<AutoMaxWidth>false</AutoMaxWidth>
+							<Height>10</Height>
+							<HorizontalStretch>true</HorizontalStretch>
+							<VerticalStretch>true</VerticalStretch>
+							<InputHint>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Например: основной склад - Центральный; выручку считать по регистру ВыручкаИСебестоимостьПродаж; организация по умолчанию - ООО Ромашка</v8:content>
+								</v8:item>
+							</InputHint>
+							<ContextMenu name="ЗаметкиДляМоделиКонтекстноеМеню" id="155"/>
+							<ExtendedTooltip name="ЗаметкиДляМоделиРасширеннаяПодсказка" id="156"/>
+						</InputField>
+					</ChildItems>
+				</Page>
 				<Page name="СтраницаДиагностика" id="103">
 					<Title>
 						<v8:item>
@@ -741,6 +780,21 @@
 				<v8:Type>xs:string</v8:Type>
 				<v8:StringQualifiers>
 					<v8:Length>100</v8:Length>
+					<v8:AllowedLength>Variable</v8:AllowedLength>
+				</v8:StringQualifiers>
+			</Type>
+		</Attribute>
+		<Attribute name="ЗаметкиДляМодели" id="157">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>ЗаметкиДляМодели</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:string</v8:Type>
+				<v8:StringQualifiers>
+					<v8:Length>1500</v8:Length>
 					<v8:AllowedLength>Variable</v8:AllowedLength>
 				</v8:StringQualifiers>
 			</Type>
