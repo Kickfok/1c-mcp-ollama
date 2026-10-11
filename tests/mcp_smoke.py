@@ -76,7 +76,7 @@ calls = [
     ("get_metadata_structure", {"metaType": "Catalogs", "name": "НетТакого"}),
     ("list_object_dependencies", {"objectType": "Catalogs", "objectName": "НетТакого"}),
     ("get_report_list", {}),
-    ("list_sale_param", {"periodStart": "2024-03-01", "periodEnd": "2024-03-31"}),
+    ("read_table", {"table": "Справочник.Валюты", "fields": ["Код", "Наименование"], "maxRows": 3}),
     ("no_such_tool", {}),
 ]
 for name, args in calls:

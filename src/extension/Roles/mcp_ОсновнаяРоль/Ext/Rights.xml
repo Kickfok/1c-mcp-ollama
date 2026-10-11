@@ -68,6 +68,13 @@
 		</right>
 	</object>
 	<object>
+		<name>DataProcessor.mcp_ИнструментДанныеБазы</name>
+		<right>
+			<name>Use</name>
+			<value>true</value>
+		</right>
+	</object>
+	<object>
 		<name>HTTPService.mcp_APIBackend.URLTemplate.mcp.Method.POST</name>
 		<right>
 			<name>Use</name>

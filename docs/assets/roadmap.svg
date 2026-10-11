@@ -1,0 +1,198 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="1406" viewBox="0 0 1100 1406" role="img" aria-labelledby="t d">
+  <title id="t">Развитие 1C MCP Ollama Bridge</title>
+  <desc id="d">История версий от 1.0.0 до 1.4.0 и план развития для руководителей, аналитиков, программистов и администраторов. Основа проекта: MCP-сервер vladimir-kharin/1c_mcp (MIT).</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#151935"/>
+      <stop offset="1" stop-color="#0B0E20"/>
+    </linearGradient>
+    <linearGradient id="rail" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5A4A16"/>
+      <stop offset="0.5" stop-color="#FFC21A"/>
+      <stop offset="1" stop-color="#8B7CFF"/>
+    </linearGradient>
+  </defs>
+  <style>
+    text { font-family: 'Segoe UI', 'Inter', 'Helvetica Neue', Arial, sans-serif; }
+    .h1 { font-size: 24px; font-weight: 700; fill: #F2F3FF; }
+    .sub { font-size: 14px; fill: #9CA3D6; }
+    .ver { font-size: 20px; font-weight: 700; }
+    .date { font-size: 12.5px; fill: #8F96C8; }
+    .ct { font-size: 16px; font-weight: 700; fill: #F2F3FF; }
+    .li { font-size: 13px; fill: #C9CEF5; }
+    .tag { font-size: 11px; font-weight: 600; }
+    .card { fill: #171B36; stroke: #2E345F; stroke-width: 1.2; }
+    .now { fill: #1E1C3E; stroke: #8B7CFF; stroke-width: 1.6; }
+    .sec { font-size: 18px; font-weight: 700; fill: #F2F3FF; }
+  </style>
+  <rect width="1100" height="1406" rx="18" fill="url(#bg)"/>
+  <text x="40" y="50" class="h1">Развитие 1C MCP Ollama Bridge</text>
+  <text x="40" y="76" class="sub">Как проект вырос из MCP-сервера в расширении в помощника, который отвечает данными базы, и что дальше</text>
+  <rect x="250" y="104" width="826" height="96" rx="14" class="card" stroke-dasharray="6 5"/>
+  <circle cx="76" cy="150" r="11" fill="#0B0E20" stroke="#C3C8EA" stroke-width="2.5"/>
+  <text x="100" y="146" class="ver" style="fill:#C3C8EA">Основа</text>
+  <text x="100" y="166" class="date">MIT</text>
+  <text x="272" y="134" class="ct">MCP-сервер в расширении 1С</text>
+  <text x="272" y="160" class="li">Проект vladimir-kharin/1c_mcp Владимира Харина: протокол MCP на HTTP-сервисе 1С,</text>
+  <text x="272" y="180" class="li">инструменты в обработках-контейнерах, которые сервер находит по составу подсистемы</text>
+  <rect x="74" y="162" width="4" height="840" rx="2" fill="url(#rail)"/>
+  <rect x="250" y="236" width="826" height="106" rx="14" class="card"/>
+  <circle cx="76" cy="280" r="9" fill="#FFC21A" stroke="#0B0E20" stroke-width="3"/>
+  <text x="100" y="278" class="ver" style="fill:#FFC21A">1.0.0</text>
+  <text x="100" y="298" class="date">04.10.2026</text>
+  <text x="272" y="266" class="ct">Первый ответ модели из базы</text>
+  <rect x="1003" y="251" width="57" height="20" rx="10" fill="#C3C8EA" fill-opacity="0.14" stroke="#C3C8EA" stroke-opacity="0.6"/>
+  <text x="1031" y="265" text-anchor="middle" class="tag" style="fill:#C3C8EA">Сборка</text>
+  <rect x="945" y="251" width="50" height="20" rx="10" fill="#7DD3FC" fill-opacity="0.14" stroke="#7DD3FC" stroke-opacity="0.6"/>
+  <text x="970" y="265" text-anchor="middle" class="tag" style="fill:#7DD3FC">Форма</text>
+  <rect x="880" y="251" width="57" height="20" rx="10" fill="#A99BFF" fill-opacity="0.14" stroke="#A99BFF" stroke-opacity="0.6"/>
+  <text x="908" y="265" text-anchor="middle" class="tag" style="fill:#A99BFF">Модель</text>
+  <circle cx="277" cy="286" r="2.5" fill="#FFC21A"/>
+  <text x="288" y="290" class="li">Оркестратор для Ollama: диалог с моделью и вызов инструментов 1С</text>
+  <circle cx="277" cy="305" r="2.5" fill="#FFC21A"/>
+  <text x="288" y="309" class="li">Форма "Анализ конфигурации MCP": вопрос обычным языком прямо в базе</text>
+  <circle cx="277" cy="324" r="2.5" fill="#FFC21A"/>
+  <text x="288" y="328" class="li">Проверка исходников и тест опубликованного сервера в GitHub Actions</text>
+  <rect x="250" y="356" width="826" height="106" rx="14" class="card"/>
+  <circle cx="76" cy="400" r="9" fill="#FFC21A" stroke="#0B0E20" stroke-width="3"/>
+  <text x="100" y="398" class="ver" style="fill:#FFC21A">1.1.0</text>
+  <text x="100" y="418" class="date">04.10.2026</text>
+  <text x="272" y="386" class="ct">Видно, что делает модель</text>
+  <rect x="1010" y="371" width="50" height="20" rx="10" fill="#7DD3FC" fill-opacity="0.14" stroke="#7DD3FC" stroke-opacity="0.6"/>
+  <text x="1035" y="385" text-anchor="middle" class="tag" style="fill:#7DD3FC">Форма</text>
+  <rect x="945" y="371" width="57" height="20" rx="10" fill="#A99BFF" fill-opacity="0.14" stroke="#A99BFF" stroke-opacity="0.6"/>
+  <text x="973" y="385" text-anchor="middle" class="tag" style="fill:#A99BFF">Модель</text>
+  <circle cx="277" cy="406" r="2.5" fill="#FFC21A"/>
+  <text x="288" y="410" class="li">Монитор оркестратора: шаги модели, время, заполнение контекста</text>
+  <circle cx="277" cy="425" r="2.5" fill="#FFC21A"/>
+  <text x="288" y="429" class="li">Ответ в форме оформлен в HTML, ход выполнения рядом с ответом</text>
+  <circle cx="277" cy="444" r="2.5" fill="#FFC21A"/>
+  <text x="288" y="448" class="li">Повтор запроса к Ollama при сбое загрузки модели</text>
+  <rect x="250" y="476" width="826" height="106" rx="14" class="card"/>
+  <circle cx="76" cy="520" r="9" fill="#FFC21A" stroke="#0B0E20" stroke-width="3"/>
+  <text x="100" y="518" class="ver" style="fill:#FFC21A">1.2.0-beta</text>
+  <text x="100" y="538" class="date">05.10.2026</text>
+  <text x="272" y="506" class="ct">Безопасность</text>
+  <rect x="1003" y="491" width="57" height="20" rx="10" fill="#C3C8EA" fill-opacity="0.14" stroke="#C3C8EA" stroke-opacity="0.6"/>
+  <text x="1031" y="505" text-anchor="middle" class="tag" style="fill:#C3C8EA">Сборка</text>
+  <rect x="894" y="491" width="100" height="20" rx="10" fill="#6EE7A8" fill-opacity="0.14" stroke="#6EE7A8" stroke-opacity="0.6"/>
+  <text x="945" y="505" text-anchor="middle" class="tag" style="fill:#6EE7A8">Безопасность</text>
+  <circle cx="277" cy="526" r="2.5" fill="#FFC21A"/>
+  <text x="288" y="530" class="li">Ключи и HTTPS оркестратора, токен пользователя 1С на время вопроса</text>
+  <circle cx="277" cy="545" r="2.5" fill="#FFC21A"/>
+  <text x="288" y="549" class="li">Диагностика подключения из 10 проверок с подсказками</text>
+  <circle cx="277" cy="564" r="2.5" fill="#FFC21A"/>
+  <text x="288" y="568" class="li">Описание HTTP-сервиса в OpenAPI, роли для администратора и пользователей</text>
+  <rect x="250" y="596" width="826" height="106" rx="14" class="card"/>
+  <circle cx="76" cy="640" r="9" fill="#FFC21A" stroke="#0B0E20" stroke-width="3"/>
+  <text x="100" y="638" class="ver" style="fill:#FFC21A">1.2.0</text>
+  <text x="100" y="658" class="date">05.10.2026</text>
+  <text x="272" y="626" class="ct">Два режима работы</text>
+  <rect x="1003" y="611" width="57" height="20" rx="10" fill="#A99BFF" fill-opacity="0.14" stroke="#A99BFF" stroke-opacity="0.6"/>
+  <text x="1031" y="625" text-anchor="middle" class="tag" style="fill:#A99BFF">Модель</text>
+  <rect x="945" y="611" width="50" height="20" rx="10" fill="#7DD3FC" fill-opacity="0.14" stroke="#7DD3FC" stroke-opacity="0.6"/>
+  <text x="970" y="625" text-anchor="middle" class="tag" style="fill:#7DD3FC">Форма</text>
+  <circle cx="277" cy="646" r="2.5" fill="#FFC21A"/>
+  <text x="288" y="650" class="li">Серверный режим и локальный: оркестратор на компьютере пользователя</text>
+  <circle cx="277" cy="665" r="2.5" fill="#FFC21A"/>
+  <text x="288" y="669" class="li">Автозапуск оркестратора из формы, кнопка "Остановить"</text>
+  <circle cx="277" cy="684" r="2.5" fill="#FFC21A"/>
+  <text x="288" y="688" class="li">Форма не запускает программы на сервере 1С</text>
+  <rect x="250" y="716" width="826" height="106" rx="14" class="card"/>
+  <circle cx="76" cy="760" r="9" fill="#FFC21A" stroke="#0B0E20" stroke-width="3"/>
+  <text x="100" y="758" class="ver" style="fill:#FFC21A">1.2.1</text>
+  <text x="100" y="778" class="date">05.10.2026</text>
+  <text x="272" y="746" class="ct">Инструкции</text>
+  <rect x="1010" y="731" width="50" height="20" rx="10" fill="#7DD3FC" fill-opacity="0.14" stroke="#7DD3FC" stroke-opacity="0.6"/>
+  <text x="1035" y="745" text-anchor="middle" class="tag" style="fill:#7DD3FC">Форма</text>
+  <rect x="902" y="731" width="100" height="20" rx="10" fill="#F59EB5" fill-opacity="0.14" stroke="#F59EB5" stroke-opacity="0.6"/>
+  <text x="952" y="745" text-anchor="middle" class="tag" style="fill:#F59EB5">Документация</text>
+  <circle cx="277" cy="766" r="2.5" fill="#FFC21A"/>
+  <text x="288" y="770" class="li">Инструкции пользователя и администратора со снимками экрана</text>
+  <circle cx="277" cy="785" r="2.5" fill="#FFC21A"/>
+  <text x="288" y="789" class="li">"Мои настройки": пути к ollama.exe и python.exe с выбором файла</text>
+  <circle cx="277" cy="804" r="2.5" fill="#FFC21A"/>
+  <text x="288" y="808" class="li">Исправления формы: примеры вопросов, кнопки, диагностика</text>
+  <rect x="250" y="836" width="826" height="106" rx="14" class="card"/>
+  <circle cx="76" cy="880" r="9" fill="#FFC21A" stroke="#0B0E20" stroke-width="3"/>
+  <text x="100" y="878" class="ver" style="fill:#FFC21A">1.3.0</text>
+  <text x="100" y="898" class="date">10.10.2026</text>
+  <text x="272" y="866" class="ct">Модель пишет запросы</text>
+  <rect x="960" y="851" width="100" height="20" rx="10" fill="#6EE7A8" fill-opacity="0.14" stroke="#6EE7A8" stroke-opacity="0.6"/>
+  <text x="1010" y="865" text-anchor="middle" class="tag" style="fill:#6EE7A8">Безопасность</text>
+  <rect x="894" y="851" width="57" height="20" rx="10" fill="#A99BFF" fill-opacity="0.14" stroke="#A99BFF" stroke-opacity="0.6"/>
+  <text x="923" y="865" text-anchor="middle" class="tag" style="fill:#A99BFF">Модель</text>
+  <rect x="829" y="851" width="57" height="20" rx="10" fill="#FFC21A" fill-opacity="0.14" stroke="#FFC21A" stroke-opacity="0.6"/>
+  <text x="858" y="865" text-anchor="middle" class="tag" style="fill:#FFC21A">Данные</text>
+  <circle cx="277" cy="886" r="2.5" fill="#FFC21A"/>
+  <text x="288" y="890" class="li">run_query и validate_query: запрос на языке 1С с проверкой прав по каждой таблице</text>
+  <circle cx="277" cy="905" r="2.5" fill="#FFC21A"/>
+  <text x="288" y="909" class="li">find_report_queries: образцы запросов из схем компоновки отчетов</text>
+  <circle cx="277" cy="924" r="2.5" fill="#FFC21A"/>
+  <text x="288" y="928" class="li">Заметки администратора для модели, результат запроса таблицей в форме</text>
+  <rect x="250" y="956" width="826" height="106" rx="14" class="now"/>
+  <circle cx="76" cy="1000" r="12" fill="#8B7CFF" stroke="#0B0E20" stroke-width="3"/>
+  <circle cx="76" cy="1000" r="18" fill="none" stroke="#8B7CFF" stroke-opacity="0.45" stroke-width="2"/>
+  <text x="100" y="998" class="ver" style="fill:#8B7CFF">1.4.0</text>
+  <text x="100" y="1018" class="date">11.10.2026</text>
+  <text x="272" y="986" class="ct">Ответы данными базы</text>
+  <rect x="1003" y="971" width="57" height="20" rx="10" fill="#A99BFF" fill-opacity="0.14" stroke="#A99BFF" stroke-opacity="0.6"/>
+  <text x="1031" y="985" text-anchor="middle" class="tag" style="fill:#A99BFF">Модель</text>
+  <rect x="894" y="971" width="100" height="20" rx="10" fill="#6EE7A8" fill-opacity="0.14" stroke="#6EE7A8" stroke-opacity="0.6"/>
+  <text x="945" y="985" text-anchor="middle" class="tag" style="fill:#6EE7A8">Безопасность</text>
+  <rect x="829" y="971" width="57" height="20" rx="10" fill="#FFC21A" fill-opacity="0.14" stroke="#FFC21A" stroke-opacity="0.6"/>
+  <text x="858" y="985" text-anchor="middle" class="tag" style="fill:#FFC21A">Данные</text>
+  <circle cx="277" cy="1006" r="2.5" fill="#8B7CFF"/>
+  <text x="288" y="1010" class="li">Инструменты выполняются в сеансе пользователя: его роли и ограничения на уровне записей</text>
+  <circle cx="277" cy="1025" r="2.5" fill="#8B7CFF"/>
+  <text x="288" y="1029" class="li">read_table, data_profile, журнал регистрации, готовые отчеты БСП с периодом и отборами</text>
+  <circle cx="277" cy="1044" r="2.5" fill="#8B7CFF"/>
+  <text x="288" y="1048" class="li">Модель называет инструмент (ResultFrom), полная таблица попадает в ответ без пересказа</text>
+  <text x="40" y="1126" class="sec">Дальше</text>
+  <text x="120" y="1126" class="sub">план развития по ролям, порядок зависит от отзывов в issues</text>
+  <rect x="24" y="1148" width="251" height="214" rx="14" class="card"/>
+  <rect x="24" y="1148" width="251" height="6" rx="3" fill="#FFC21A"/>
+  <text x="44" y="1188" class="ct" style="fill:#FFC21A">Руководителям</text>
+  <rect x="44" y="1213" width="14" height="14" rx="4" fill="none" stroke="#FFC21A" stroke-width="1.6"/>
+  <text x="68" y="1226" class="li">Продажи, долги и деньги</text>
+  <text x="68" y="1244" class="li">через готовые отчеты</text>
+  <rect x="44" y="1257" width="14" height="14" rx="4" fill="none" stroke="#FFC21A" stroke-width="1.6"/>
+  <text x="68" y="1270" class="li">Сравнение периодов и графики</text>
+  <text x="68" y="1288" class="li">в ответе</text>
+  <rect x="44" y="1301" width="14" height="14" rx="4" fill="none" stroke="#FFC21A" stroke-width="1.6"/>
+  <text x="68" y="1314" class="li">Сводка показателей одним</text>
+  <text x="68" y="1332" class="li">вопросом</text>
+  <rect x="291" y="1148" width="251" height="214" rx="14" class="card"/>
+  <rect x="291" y="1148" width="251" height="6" rx="3" fill="#7DD3FC"/>
+  <text x="311" y="1188" class="ct" style="fill:#7DD3FC">Аналитикам</text>
+  <rect x="311" y="1213" width="14" height="14" rx="4" fill="none" stroke="#7DD3FC" stroke-width="1.6"/>
+  <text x="335" y="1226" class="li">Администратор отбирает</text>
+  <text x="335" y="1244" class="li">отчеты для модели</text>
+  <rect x="311" y="1257" width="14" height="14" rx="4" fill="none" stroke="#7DD3FC" stroke-width="1.6"/>
+  <text x="335" y="1270" class="li">Выгрузка ответа в Excel</text>
+  <rect x="311" y="1301" width="14" height="14" rx="4" fill="none" stroke="#7DD3FC" stroke-width="1.6"/>
+  <text x="335" y="1314" class="li">Готовые сценарии вопросов</text>
+  <text x="335" y="1332" class="li">(промпты MCP)</text>
+  <rect x="558" y="1148" width="251" height="214" rx="14" class="card"/>
+  <rect x="558" y="1148" width="251" height="6" rx="3" fill="#A99BFF"/>
+  <text x="578" y="1188" class="ct" style="fill:#A99BFF">Программистам</text>
+  <rect x="578" y="1213" width="14" height="14" rx="4" fill="none" stroke="#A99BFF" stroke-width="1.6"/>
+  <text x="602" y="1226" class="li">Поиск по коду модулей</text>
+  <rect x="578" y="1257" width="14" height="14" rx="4" fill="none" stroke="#A99BFF" stroke-width="1.6"/>
+  <text x="602" y="1270" class="li">Объяснение и проверка</text>
+  <text x="602" y="1288" class="li">запросов</text>
+  <rect x="578" y="1301" width="14" height="14" rx="4" fill="none" stroke="#A99BFF" stroke-width="1.6"/>
+  <text x="602" y="1314" class="li">Шаблон и тесты своего</text>
+  <text x="602" y="1332" class="li">инструмента</text>
+  <rect x="825" y="1148" width="251" height="214" rx="14" class="card"/>
+  <rect x="825" y="1148" width="251" height="6" rx="3" fill="#6EE7A8"/>
+  <text x="845" y="1188" class="ct" style="fill:#6EE7A8">Администраторам</text>
+  <rect x="845" y="1213" width="14" height="14" rx="4" fill="none" stroke="#6EE7A8" stroke-width="1.6"/>
+  <text x="869" y="1226" class="li">Оркестратор как служба</text>
+  <text x="869" y="1244" class="li">Windows</text>
+  <rect x="845" y="1257" width="14" height="14" rx="4" fill="none" stroke="#6EE7A8" stroke-width="1.6"/>
+  <text x="869" y="1270" class="li">Журнал вопросов с отбором по</text>
+  <text x="869" y="1288" class="li">пользователю</text>
+  <rect x="845" y="1301" width="14" height="14" rx="4" fill="none" stroke="#6EE7A8" stroke-width="1.6"/>
+  <text x="869" y="1314" class="li">Модели с большим контекстом</text>
+</svg>

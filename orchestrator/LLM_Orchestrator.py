@@ -19,7 +19,7 @@ import uuid
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from hashlib import sha1
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Callable, Optional, Dict, Any, List, Tuple
 from urllib.parse import urlparse, parse_qs
 
 import requests
@@ -252,17 +252,17 @@ SYSTEM_PROMPT = """
 2) Для финального ответа:
 {
   "action": "final",
-  "Text": "краткое текстовое описание результата",
-  "Result": { ... }  // Здесь должны быть ПОЛНЫЕ данные из инструментов
+  "Text": "ответ на вопрос в 1-3 предложениях: главные числа и выводы",
+  "ResultFrom": "имя_инструмента"
 }
 
 ВАЖНО:
 - НЕ ИСПОЛЬЗУЙ теги <think> и НЕ ВЫВОДИ никаких внутренних рассуждений.
-- В поле "Result" помещай ПОЛНЫЕ данные, полученные от инструментов
-- В поле "Text" пиши только краткое описание того, что в Result
-- Не обрезай данные в поле Result
-- Если данные большие, возвращай их полностью в Result
-- Не добавляй никаких дополнительных полей кроме "action", "Text" и "Result"
+- НЕ ПЕРЕПИСЫВАЙ данные инструментов в ответ: укажи в "ResultFrom" имя инструмента, результат которого
+  отвечает на вопрос, и он целиком попадет в ответ пользователю. Если данных нет, "ResultFrom" не указывай
+- Поле "Result" заполняй сам, только если посчитал что-то, чего нет ни в одном результате инструмента, и
+  только этими данными, коротко
+- В поле "Text" пиши вывод для человека, а не перечисление всех строк
 
 ОБЩИЕ ПРИНЦИПЫ РАБОТЫ:
 - Внимательно анализируй запрос пользователя
@@ -273,12 +273,12 @@ SYSTEM_PROMPT = """
 - Если данных достаточно — возвращай финальный ответ
 - Используй точные названия инструментов из списка доступных
 - Не повторяй одинаковые вызовы инструментов
-- Если готового инструмента для вопроса нет, составь запрос на языке запросов 1С: узнай имена полей
-  через get_metadata_structure, найди образец через find_report_queries, проверь текст через
-  validate_query и выполни run_query. Пиши запрос только по-русски (ВЫБРАТЬ, ИЗ, ГДЕ)
-- list_metadata_objects и get_metadata_structure описывают конфигурацию (какие есть справочники и их
-  реквизиты), а не записи базы. Вопрос о записях (перечисли контрагентов, сколько документов, какая
-  сумма) требует run_query
+- Вопрос о записях базы (список, количество, суммы) - это данные: читай их через read_table (поля,
+  отборы, итоги в JSON) или run_query (запрос на языке 1С, только по-русски: ВЫБРАТЬ, ИЗ, ГДЕ). Имена
+  таблиц и полей узнай через list_metadata_objects и get_metadata_structure: они описывают
+  конфигурацию, а не записи
+- Для выручки, прибыли, остатков и задолженности сначала поищи готовый отчет: list_report_variants,
+  затем run_report_variant. Не знаешь, где лежат данные за период, - вызови data_profile
 """
 
 
@@ -412,8 +412,8 @@ def validate_json_structure(data: Dict[str, Any]) -> bool:
         required = ['name', 'arguments']
         return all(key in data for key in required)
     elif action == 'final':
-        required = ['Text', 'Result']
-        return all(key in data for key in required)
+        # Result необязателен: данные инструмента подставляет ResultFrom, а при пустом ответе их нет
+        return 'Text' in data
     
     return False
 
@@ -582,6 +582,19 @@ def normalize_mcp_result(result: Any) -> Dict[str, Any]:
     }
 
 
+def tool_result_value(result: Dict[str, Any]) -> Any:
+    """Данные результата инструмента для ответа: JSON из текста разбирается в объект, обычный текст
+    остается строкой. Несколько текстовых элементов склеиваются."""
+    content = result.get("content")
+    if not isinstance(content, list):
+        return result
+    text = "".join(item.get("text", "") for item in content if isinstance(item, dict) and item.get("type") == "text")
+    try:
+        return json.loads(text)
+    except ValueError:
+        return text
+
+
 def truncate_tool_result(result: Dict[str, Any], max_chars: int = MAX_TOOL_RESULT_CHARS) -> Dict[str, Any]:
     """
     Обрезает текстовое содержимое результата инструмента до max_chars символов.
@@ -727,6 +740,16 @@ def warmup_llm_async():
     thread.start()
 
 
+def short_ollama_error(error_info: Dict[str, Any]) -> str:
+    """Короткое описание ошибки Ollama для журнала запроса: первая фраза без технических подробностей."""
+    details = error_info.get("details") if isinstance(error_info, dict) else None
+    text = details.get("ollama_error", "") if isinstance(details, dict) else ""
+    if "CUDA error" in text:
+        return "сбой загрузки модели в видеопамять"
+    text = (text or str(error_info.get("message", "")) if isinstance(error_info, dict) else str(error_info)).strip()
+    return text.split(":")[0][:80] or "внутренняя ошибка"
+
+
 def call_llm(prompt: str) -> Dict[str, Any]:
     """Вызывает LLM с анализом ошибок и возвратом структурированной информации"""
     for attempt in range(LLM_MAX_RETRIES):
@@ -763,13 +786,17 @@ def call_llm(prompt: str) -> Dict[str, Any]:
                     r
                 )
 
-                logger.warning(f"Ошибка HTTP {r.status_code} от LLM: {error_info}")
-
                 # Ошибка 5xx бывает разовой: runner Ollama падает при загрузке модели с
                 # "CUDA error" (failed to allocate pinned memory), а следующая загрузка проходит.
+                # Полный текст ошибки - только в консоли, в журнал запроса - короткая строка.
                 if r.status_code >= 500 and attempt < LLM_MAX_RETRIES - 1:
-                    time.sleep(LLM_RETRY_DELAY * (attempt + 1))
+                    delay = LLM_RETRY_DELAY * (attempt + 1)
+                    logger.debug(f"Ошибка HTTP {r.status_code} от LLM: {error_info}")
+                    logger.warning(f"Ollama не смогла ответить (HTTP {r.status_code}, {short_ollama_error(error_info)}): "
+                                   f"повтор через {delay} с")
+                    time.sleep(delay)
                     continue
+                logger.warning(f"Ошибка HTTP {r.status_code} от LLM: {error_info}")
 
                 return {
                     "action": "final",
@@ -882,7 +909,10 @@ def call_llm(prompt: str) -> Dict[str, Any]:
 
 # ================== PROMPT ==================
 def build_prompt(messages, tools, include_tools, instructions: Optional[str] = None):
-    parts = [SYSTEM_PROMPT.strip()]
+    # Без текущей даты модель понимает "этот год" и "прошлый месяц" как годы из обучающих данных
+    parts = [SYSTEM_PROMPT.strip(),
+             f"СЕГОДНЯ: {time.strftime('%Y-%m-%d')}. Периоды вроде \"этот год\" и \"прошлый месяц\" считай от этой даты, "
+             "даты в аргументах пиши как ГГГГ-ММ-ДД"]
     if instructions:
         parts.append("ЗАМЕТКИ АДМИНИСТРАТОРА ОБ ЭТОЙ БАЗЕ (учитывай при выборе объектов и инструментов):\n"
                      + instructions)
@@ -946,8 +976,8 @@ def tool_param_prompt(pname: str, pinfo: Any, required: bool) -> str:
 # описание в Result даже на вопрос о данных, поэтому к результату добавляется подсказка про run_query.
 METADATA_TOOLS = {"list_metadata_objects", "get_metadata_structure"}
 METADATA_HINT = ("ПОДСКАЗКА: это описание конфигурации, а не записи базы. Если вопрос о записях (список, "
-                 "количество, суммы), вызови run_query с полями из этого описания. Если вопрос о составе "
-                 "объекта, дай финальный ответ.")
+                 "количество, суммы), вызови read_table или run_query с полями из этого описания. Если вопрос о "
+                 "составе объекта, дай финальный ответ.")
 
 
 def tool_result_prompt(content: Any, tool: Optional[str] = None) -> List[str]:
@@ -1244,6 +1274,8 @@ MONITOR_HTML = r"""<!doctype html>
     tool_call: ["MCP CALL", "mcp"], tool_result: ["MCP RESPONSE", "mcp"], final: ["ГОТОВО", "ok"],
     error: ["ОШИБКА", "err"], warning: ["ВНИМАНИЕ", "warn"], log: ["", "log"]
   };
+  // Инструмент, выполненный формой 1С в сеансе пользователя, подписывается иначе, чем вызов по MCP
+  var SESSION_KIND = { tool_call: ["1С CALL", "mcp"], tool_result: ["1С RESPONSE", "mcp"] };
 
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) {
@@ -1295,7 +1327,7 @@ MONITOR_HTML = r"""<!doctype html>
   }
 
   function render(ev) {
-    var d = ev.data || {}, k = KIND[ev.kind] || ["", "log"], x;
+    var d = ev.data || {}, k = (d.place === "session" && SESSION_KIND[ev.kind]) || KIND[ev.kind] || ["", "log"], x;
     if (ev.kind === "log") {
       if (!showAll && ev.level !== "WARNING" && ev.level !== "ERROR") return;
       var cls = ev.level === "ERROR" ? "err" : (ev.level === "WARNING" ? "warn" : "log");
@@ -1545,6 +1577,10 @@ KEEP_FINISHED_REQUESTS = 200
 
 REQUESTS_PATH = "/requests/"
 REQUEST_NOT_FOUND = "Запрос не найден"
+TOOL_RESULT_SUFFIX = "/tool_result"
+# Сколько оркестратор ждет, пока форма 1С выполнит вызов инструмента в сеансе пользователя: готовый
+# отчет большой базы формируется минутами
+CLIENT_TOOL_TIMEOUT = 600
 
 
 class RequestRejected(Exception):
@@ -1560,13 +1596,20 @@ class QuestionRequest:
     """Вопрос пользователя 1С и состояние его обработки."""
 
     def __init__(self, request_id: str, text: str, user: Optional[str], mcp_token: Optional[str],
-                 instructions: Optional[str] = None):
+                 instructions: Optional[str] = None, client_tools: bool = False):
         self.id = request_id
         self.text = text
         self.user = user
         self.instructions = instructions
         # Токен пользователя 1С нужен только на время обработки и наружу не отдается.
         self.mcp_token = mcp_token
+        # Инструменты выполняет форма 1С в сеансе пользователя: оркестратор выставляет вызов в pending_tool
+        # и ждет результат через POST /requests/{id}/tool_result
+        self.client_tools = client_tools
+        self.pending_tool: Optional[Dict[str, Any]] = None
+        self._tool_result: Optional[Dict[str, Any]] = None
+        self._tool_ready = threading.Event()
+        self._tool_lock = threading.Lock()
         self.status = "running"
         self.created = time.time()
         self.finished: Optional[float] = None
@@ -1584,9 +1627,42 @@ class QuestionRequest:
             "steps": self.steps,
             "question": self.text[:300],
         }
+        pending = self.pending_tool
+        if pending and self.status == "running":
+            state["pending_tool"] = pending
         if with_response:
             state["response"] = self.response
         return state
+
+    def call_client_tool(self, tool: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Выставляет вызов инструмента для формы 1С и ждет результат. Форма выполняет вызов в сеансе
+        пользователя, поэтому действуют его роли и ограничения на уровне записей."""
+        with self._tool_lock:
+            self._tool_result = None
+            self._tool_ready.clear()
+            self.pending_tool = {"id": uuid.uuid4().hex, "name": tool, "arguments": args}
+        deadline = time.time() + CLIENT_TOOL_TIMEOUT
+        while not self._tool_ready.wait(1):
+            if self.cancel.is_set() or time.time() > deadline:
+                with self._tool_lock:
+                    self.pending_tool = None
+                reason = ("запрос отменен" if self.cancel.is_set()
+                          else f"форма 1С не выполнила вызов за {CLIENT_TOOL_TIMEOUT} с")
+                return {"content": [{"type": "text", "text": f"Инструмент {tool} не выполнен: {reason}"}],
+                        "isError": True}
+        with self._tool_lock:
+            return normalize_mcp_result(self._tool_result)
+
+    def accept_tool_result(self, call_id: Any, result: Any) -> bool:
+        """Принимает результат вызова от формы 1С. Результат чужого или уже завершенного вызова не принимается."""
+        with self._tool_lock:
+            pending = self.pending_tool
+            if not pending or call_id != pending["id"]:
+                return False
+            self._tool_result = result
+            self.pending_tool = None
+            self._tool_ready.set()
+            return True
 
 
 class RequestRegistry:
@@ -1600,7 +1676,8 @@ class RequestRegistry:
             return sum(1 for r in self._items.values() if r.status == "running")
 
     def create(self, text: str, user: Optional[str], mcp_token: Optional[str],
-               request_id: Optional[str] = None, instructions: Optional[str] = None) -> QuestionRequest:
+               request_id: Optional[str] = None, instructions: Optional[str] = None,
+               client_tools: bool = False) -> QuestionRequest:
         with self._lock:
             if sum(1 for r in self._items.values() if r.status == "running") >= MAX_ACTIVE_REQUESTS:
                 raise RequestRejected(429, "busy", f"Оркестратор уже обрабатывает {MAX_ACTIVE_REQUESTS} вопроса, "
@@ -1608,7 +1685,7 @@ class RequestRegistry:
             request_id = request_id or uuid.uuid4().hex
             if request_id in self._items:
                 raise RequestRejected(409, "duplicate_request_id", "Запрос с таким идентификатором уже есть")
-            rec = QuestionRequest(request_id, text, user, mcp_token, instructions)
+            rec = QuestionRequest(request_id, text, user, mcp_token, instructions, client_tools)
             self._items[request_id] = rec
             finished = [k for k, r in self._items.items() if r.status != "running"]
             for k in finished[:max(0, len(finished) - KEEP_FINISHED_REQUESTS)]:
@@ -1666,6 +1743,16 @@ def clean_instructions(value: Any) -> Optional[str]:
     return value or None
 
 
+def clean_tool_mode(value: Any) -> bool:
+    """Режим вызова инструментов: server (оркестратор вызывает MCP сам) или client (вызовы выполняет
+    форма 1С в сеансе пользователя). Возвращает Истина для client."""
+    if value in (None, "", "server"):
+        return False
+    if value == "client":
+        return True
+    raise RequestRejected(400, "bad_request", "Поле tool_mode принимает значения server и client")
+
+
 def new_request(data: Dict[str, Any]) -> QuestionRequest:
     """Проверяет тело вопроса и регистрирует запрос."""
     text = data.get("text")
@@ -1674,16 +1761,23 @@ def new_request(data: Dict[str, Any]) -> QuestionRequest:
     if len(text) > MAX_QUESTION_CHARS:
         raise RequestRejected(400, "bad_request", f"Вопрос длиннее {MAX_QUESTION_CHARS} символов")
     return REQUESTS.create(text, clean_user(data.get("user")), clean_mcp_token(data.get("mcp_token")),
-                           clean_request_id(data.get("request_id")), clean_instructions(data.get("instructions")))
+                           clean_request_id(data.get("request_id")), clean_instructions(data.get("instructions")),
+                           clean_tool_mode(data.get("tool_mode")))
 
 
 class ToolDialog:
     """История сообщений модели по одному вопросу и защита от повторных вызовов инструментов."""
 
-    def __init__(self, text: str):
+    def __init__(self, text: str, caller: Optional[Callable[[str, Dict[str, Any]], Dict[str, Any]]] = None):
         self.messages = [{"role": "user", "content": text}]
         self.used_calls = set()
         self.rejected_repeats = 0           # отклоненные повторы подряд
+        # Последний полный (не обрезанный для контекста) результат каждого инструмента: его подставляет в
+        # ответ final_answer, когда модель указывает ResultFrom
+        self.full_results: Dict[str, Any] = {}
+        # Кто выполняет вызов: MCP-сервер 1С по токену или форма 1С в сеансе пользователя
+        self.caller = caller or mcp_call_tool
+        self.place = "session" if caller else "mcp"
 
     def reply(self, content: Any, tool: Optional[str] = None):
         self.messages.append({"role": "tool", "content": content, "tool": tool})
@@ -1718,18 +1812,21 @@ class ToolDialog:
         self.rejected_repeats = 0
         self.used_calls.add(call_hash)
 
-        trace("tool_call", f"Вызов инструмента: {tool} с аргументами: {args}",
-              tool=tool, arguments=args,
+        where = " в сеансе 1С" if self.place == "session" else ""
+        trace("tool_call", f"Вызов инструмента{where}: {tool} с аргументами: {args}",
+              tool=tool, arguments=args, place=self.place,
               arguments_text=json.dumps(args, ensure_ascii=False),
               container=AVAILABLE_TOOLS[tool].get("container") or "")
         tool_started = time.time()
-        result = mcp_call_tool(tool, args)
+        result = self.caller(tool, args)
         full_length = tool_result_length(result)
 
+        if isinstance(result, dict) and not result.get("isError"):
+            self.full_results[tool] = tool_result_value(result)
         # Обрезаем слишком большие ответы, чтобы не переполнить контекст
         result = truncate_tool_result(result)
         trace("tool_result", f"Ответ инструмента {tool}: {full_length} симв.",
-              tool=tool, seconds=round(time.time() - tool_started, 2),
+              tool=tool, seconds=round(time.time() - tool_started, 2), place=self.place,
               chars=full_length, truncated=full_length > MAX_TOOL_RESULT_CHARS,
               is_error=bool(result.get("isError")) if isinstance(result, dict) else False,
               preview=tool_result_preview(result)[:TRACE_PREVIEW_CHARS])
@@ -1737,9 +1834,14 @@ class ToolDialog:
         return None
 
 
-def final_answer(answer: Dict[str, Any]) -> Dict[str, Any]:
-    """Итоговый ответ модели в формате Success/Text/Result."""
+def final_answer(answer: Dict[str, Any], results: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Итоговый ответ модели в формате Success/Text/Result. Если модель указала ResultFrom, в Result
+    подставляется полный последний результат этого инструмента: модель не тратит время на переписывание
+    данных и не может их исказить."""
     result = answer.get("Result", {})
+    source = answer.get("ResultFrom")
+    if isinstance(source, str) and results and source in results:
+        result = results[source]
     if is_error_result(result):
         return create_error_response(answer.get("Text", "Произошла ошибка"), result.get("error_type", "unknown"),
                                      result.get("details", {}), False)
@@ -1751,7 +1853,7 @@ def final_answer(answer: Dict[str, Any]) -> Dict[str, Any]:
 
 def answer_question(rec: QuestionRequest) -> Tuple[int, Dict[str, Any]]:
     """Цикл модель - инструменты по одному вопросу. Возвращает код HTTP и ответ."""
-    dialog = ToolDialog(rec.text)
+    dialog = ToolDialog(rec.text, rec.call_client_tool if rec.client_tools else None)
 
     for step in range(1, MAX_STEPS + 1):
         if rec.cancel.is_set():
@@ -1774,7 +1876,7 @@ def answer_question(rec: QuestionRequest) -> Tuple[int, Dict[str, Any]]:
 
         if action == "final":
             logger.info(f"Запрос завершен за {step} шагов")
-            return 200, final_answer(answer)
+            return 200, final_answer(answer, dialog.full_results)
         if action == "call_tool":
             stop = dialog.call_tool(answer, step)
             if stop:
@@ -2117,6 +2219,8 @@ class Handler(BaseHTTPRequestHandler):
                 handler()
             elif url.path.startswith(REQUESTS_PATH) and url.path.endswith("/cancel"):
                 self.post_cancel(url.path[len(REQUESTS_PATH):-len("/cancel")])
+            elif url.path.startswith(REQUESTS_PATH) and url.path.endswith(TOOL_RESULT_SUFFIX):
+                self.post_tool_result(url.path[len(REQUESTS_PATH):-len(TOOL_RESULT_SUFFIX)])
             else:
                 self.send_json(404, {"error": "not_found", "path": url.path})
         except RequestRejected as e:
@@ -2203,6 +2307,23 @@ class Handler(BaseHTTPRequestHandler):
         rec.cancel.set()
         self.send_json(200, rec.public(False))
 
+    def post_tool_result(self, request_id: str):
+        """Результат вызова инструмента, выполненного формой 1С в сеансе пользователя."""
+        if not self.authorize():
+            return
+        rec = REQUESTS.get(request_id)
+        if rec is None:
+            self.send_request_not_found()
+            return
+        data = self.read_json()
+        result = data.get("result")
+        if not isinstance(result, dict) or not isinstance(result.get("content"), list):
+            raise RequestRejected(400, "bad_request", "Поле result должно быть результатом MCP: content и isError")
+        if not rec.accept_tool_result(data.get("call_id"), result):
+            self.send_json(409, {"error": "no_pending_call", "message": "Оркестратор не ждет этот вызов"})
+            return
+        self.send_json(200, {"accepted": True})
+
     def post_diagnostics(self):
         if self.authorize():
             data = self.read_json() if int(self.headers.get("Content-Length", 0) or 0) else {}
@@ -2213,7 +2334,11 @@ class Handler(BaseHTTPRequestHandler):
         через /events?request=<свой request_id>."""
         if not self.authorize():
             return
-        rec = new_request(self.read_json())
+        data = self.read_json()
+        if clean_tool_mode(data.get("tool_mode")):
+            raise RequestRejected(400, "bad_request", "tool_mode client работает только с POST /requests: "
+                                                      "клиент должен опрашивать состояние запроса")
+        rec = new_request(data)
         code, response_obj = process_request(rec)
         response_obj = dict(response_obj)
         response_obj["Trace"] = JOURNAL.since(0, rec.id, JOURNAL_SIZE)

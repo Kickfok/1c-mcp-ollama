@@ -17,8 +17,7 @@
 			<Picture/>
 			<Content>
 				<xr:Item xsi:type="xr:MDObjectRef">DataProcessor.mcp_ИнструментДанныеОКонфигурации</xr:Item>
-				<xr:Item xsi:type="xr:MDObjectRef">DataProcessor.mcp_ИнструментДанныеПродаж</xr:Item>
-				<xr:Item xsi:type="xr:MDObjectRef">DataProcessor.mcp_ИнструментДляБухгалтерскойРаботы</xr:Item>
+				<xr:Item xsi:type="xr:MDObjectRef">DataProcessor.mcp_ИнструментДанныеБазы</xr:Item>
 			</Content>
 		</Properties>
 		<ChildObjects/>

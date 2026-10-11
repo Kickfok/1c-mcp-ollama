@@ -5,11 +5,11 @@
     [string]$User = "",
     # Путь к 1cv8.exe; по умолчанию - самая новая платформа в Program Files
     [string]$Platform = "",
-    # Выгрузить собранное расширение в build/MCP_Сервер.cfe для релиза
+    # Выгрузить собранное расширение в build/1C-MCP-Ollama-Bridge.cfe для релиза
     [switch]$Dump
 )
 # Загружает расширение MCP_Сервер из src/extension в информационную базу, проверяет модули во всех
-# контекстах, обновляет базу и при -Dump выгружает build/MCP_Сервер.cfe.
+# контекстах, обновляет базу и при -Dump выгружает build/1C-MCP-Ollama-Bridge.cfe.
 #
 #   powershell -File tools/build_extension.ps1 -Infobase C:\Bases\Test -User Администратор -Dump
 
@@ -47,7 +47,7 @@ Invoke-Designer "load" @("/LoadConfigFromFiles`"$source`"", "-Extension", $exten
 Invoke-Designer "check" @("/CheckModules", "-ThinClient", "-WebClient", "-Server", "-ExternalConnection", "-Extension", $extension)
 Invoke-Designer "update" @("/UpdateDBCfg", "-Extension", $extension)
 if ($Dump) {
-    $cfe = Join-Path $root "build\$extension.cfe"
+    $cfe = Join-Path $root "build\1C-MCP-Ollama-Bridge.cfe"
     Invoke-Designer "dump" @("/DumpCfg`"$cfe`"", "-Extension", $extension)
     "Расширение выгружено: $cfe"
 }

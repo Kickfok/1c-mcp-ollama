@@ -1,0 +1,212 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="660" viewBox="0 0 1100 660" role="img" aria-labelledby="t d">
+  <title id="t">Как работает 1C MCP Ollama Bridge</title>
+  <desc id="d">Пользователь задает вопрос в форме 1С. Оркестратор передает вопрос и список инструментов локальной модели Ollama. Модель выбирает инструмент, форма выполняет его в сеансе пользователя с его ролями и ограничениями на уровне записей, результат возвращается модели. Модель пишет вывод и указывает, результат какого инструмента показать, и форма выводит ответ с полной таблицей. Внешние MCP-клиенты обращаются к HTTP-сервису 1С с персональным токеном.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#151935"/>
+      <stop offset="1" stop-color="#0B0E20"/>
+    </linearGradient>
+    <linearGradient id="db" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFD54A"/>
+      <stop offset="1" stop-color="#F5A800"/>
+    </linearGradient>
+    <linearGradient id="panel1c" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2A2412"/>
+      <stop offset="1" stop-color="#17150E"/>
+    </linearGradient>
+    <linearGradient id="chip" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#A99BFF"/>
+      <stop offset="1" stop-color="#6E5CF0"/>
+    </linearGradient>
+    <marker id="ay" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#FFC21A"/>
+    </marker>
+    <marker id="av" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#A99BFF"/>
+    </marker>
+    <marker id="ac" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#7DD3FC"/>
+    </marker>
+    <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#6EE7A8"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: 'Segoe UI', 'Inter', 'Helvetica Neue', Arial, sans-serif; }
+    .h1 { font-size: 22px; font-weight: 700; fill: #F2F3FF; }
+    .sub { font-size: 14px; fill: #9CA3D6; }
+    .ct { font-size: 17px; font-weight: 700; fill: #F2F3FF; }
+    .cs { font-size: 12.5px; fill: #A7ADD9; }
+    .lbl { font-size: 12.5px; fill: #E4E6FF; }
+    .num { font-size: 12px; font-weight: 700; fill: #0B0E20; }
+    .mono { font-family: 'Cascadia Mono', Consolas, 'DejaVu Sans Mono', monospace; font-size: 11.5px; fill: #C9CEF5; }
+    .bt { font-size: 13px; font-weight: 700; fill: #F2F3FF; }
+    .bs { font-size: 11.5px; fill: #A7ADD9; }
+    .card { fill: #171B36; stroke: #2E345F; stroke-width: 1.2; }
+    .flow { stroke-width: 2; fill: none; }
+    .dash { stroke-dasharray: 5 5; animation: run 1.2s linear infinite; }
+    @keyframes run { to { stroke-dashoffset: -20; } }
+    @media (prefers-reduced-motion: reduce) { .dash { animation: none; } }
+  </style>
+
+  <rect width="1100" height="660" rx="18" fill="url(#bg)"/>
+  <text x="40" y="48" class="h1">Вопрос из 1С - ответ с данными базы</text>
+  <text x="40" y="72" class="sub">Модель работает на вашем компьютере, инструменты выполняются в сеансе пользователя 1С: его роли и ограничения доступа к записям действуют сами</text>
+
+  <!-- База 1С -->
+  <rect x="24" y="96" width="340" height="420" rx="16" fill="url(#panel1c)" stroke="#5A4A16" stroke-width="1.4"/>
+  <g transform="translate(44 112)">
+    <path d="M0 8 v22 a16 6 0 0 0 32 0 v-22" fill="url(#db)"/>
+    <ellipse cx="16" cy="8" rx="16" ry="6" fill="#FFE27A"/>
+  </g>
+  <text x="88" y="132" class="ct">База 1С</text>
+  <text x="88" y="150" class="cs">расширение MCP_Сервер, тонкий клиент</text>
+
+  <rect x="44" y="168" width="300" height="118" rx="12" class="card"/>
+  <g transform="translate(62 186)" fill="none" stroke="#FFC21A" stroke-width="2">
+    <circle cx="11" cy="8" r="7"/>
+    <path d="M-1 30 a12 11 0 0 1 24 0"/>
+  </g>
+  <text x="100" y="196" class="bt">Форма вопроса</text>
+  <text x="100" y="214" class="bs">"Анализ конфигурации MCP"</text>
+  <text x="62" y="242" class="lbl">Вопрос обычным языком, ход выполнения,</text>
+  <text x="62" y="260" class="lbl">ответ с выводом и таблицей данных</text>
+
+  <rect x="44" y="330" width="300" height="104" rx="12" class="card"/>
+  <g transform="translate(62 348)" fill="#FFC21A">
+    <rect width="10" height="10" rx="2"/><rect x="14" width="10" height="10" rx="2"/>
+    <rect y="14" width="10" height="10" rx="2"/><rect x="14" y="14" width="10" height="10" rx="2" opacity="0.5"/>
+  </g>
+  <text x="100" y="358" class="bt">13 инструментов</text>
+  <text x="100" y="376" class="bs">только чтение, права проверяются</text>
+  <text x="62" y="402" class="mono">read_table · run_query · data_profile</text>
+  <text x="62" y="420" class="mono">run_report_variant · read_event_log ...</text>
+
+  <!-- выполнение в сеансе -->
+  <path d="M194 288 V326" class="flow" stroke="#6EE7A8" marker-end="url(#ag)"/>
+  <rect x="204" y="296" width="136" height="24" rx="12" fill="#12301F" stroke="#2F7A52"/>
+  <text x="272" y="312" text-anchor="middle" class="bs" style="fill:#9FF0C4">в сеансе: роли и RLS</text>
+
+  <rect x="44" y="450" width="300" height="50" rx="12" class="card"/>
+  <text x="62" y="472" class="bt">HTTP-сервис /hs/mcp</text>
+  <text x="62" y="490" class="bs">для внешних MCP-клиентов</text>
+
+  <!-- Оркестратор -->
+  <rect x="534" y="168" width="210" height="266" rx="16" class="card" stroke="#3B4277"/>
+  <g transform="translate(554 186)" fill="none" stroke="#7DD3FC" stroke-width="2.2">
+    <circle cx="14" cy="14" r="12"/>
+    <path d="M14 2 V8 M14 20 V26 M2 14 H8 M20 14 H26"/>
+    <circle cx="14" cy="14" r="3" fill="#7DD3FC"/>
+  </g>
+  <text x="596" y="200" class="ct">Оркестратор</text>
+  <text x="596" y="218" class="cs">LLM_Orchestrator.py</text>
+  <text x="554" y="252" class="lbl">Ведет диалог с моделью</text>
+  <text x="554" y="270" class="lbl">до 15 шагов, проверяет</text>
+  <text x="554" y="288" class="lbl">JSON, отклоняет повторы</text>
+  <text x="554" y="318" class="cs">ключи, HTTPS, токен</text>
+  <text x="554" y="336" class="cs">пользователя на время вопроса</text>
+  <text x="554" y="366" class="cs">монитор: шаги, время,</text>
+  <text x="554" y="384" class="cs">заполнение контекста</text>
+  <text x="554" y="414" class="mono">:9000</text>
+
+  <!-- Ollama -->
+  <rect x="866" y="168" width="210" height="266" rx="16" class="card" stroke="#4A3F8F"/>
+  <g transform="translate(886 186)">
+    <rect x="3" y="3" width="24" height="24" rx="5" fill="url(#chip)"/>
+    <path d="M8 0 V3 M15 0 V3 M22 0 V3 M8 27 V30 M15 27 V30 M22 27 V30 M0 8 H3 M0 15 H3 M0 22 H3 M27 8 H30 M27 15 H30 M27 22 H30" stroke="#A99BFF" stroke-width="2"/>
+  </g>
+  <text x="928" y="200" class="ct">Ollama</text>
+  <text x="928" y="218" class="cs">qwen2.5-coder:32b</text>
+  <text x="886" y="252" class="lbl">Локальная модель:</text>
+  <text x="886" y="270" class="lbl">выбирает инструмент</text>
+  <text x="886" y="288" class="lbl">и пишет вывод</text>
+  <text x="886" y="318" class="cs">видеокарта 12 ГБ,</text>
+  <text x="886" y="336" class="cs">контекст 4096 токенов</text>
+  <text x="886" y="366" class="cs">данные не уходят</text>
+  <text x="886" y="384" class="cs">за пределы вашей сети</text>
+  <text x="886" y="414" class="mono">:11434</text>
+
+  <!-- 1С <-> оркестратор -->
+  <g>
+    <path d="M370 196 H526" class="flow dash" stroke="#FFC21A" marker-end="url(#ay)"/>
+    <circle cx="384" cy="184" r="9" fill="#FFC21A"/><text x="384" y="188" text-anchor="middle" class="num">1</text>
+    <text x="400" y="188" class="lbl">вопрос и токен</text>
+
+    <path d="M526 256 H370" class="flow" stroke="#7DD3FC" marker-end="url(#ac)"/>
+    <circle cx="384" cy="244" r="9" fill="#7DD3FC"/><text x="384" y="248" text-anchor="middle" class="num">4</text>
+    <text x="400" y="248" class="lbl">выполни инструмент</text>
+
+    <path d="M370 316 H526" class="flow dash" stroke="#6EE7A8" marker-end="url(#ag)"/>
+    <circle cx="384" cy="304" r="9" fill="#6EE7A8"/><text x="384" y="308" text-anchor="middle" class="num">5</text>
+    <text x="400" y="308" class="lbl">результат</text>
+
+    <path d="M526 396 H370" class="flow" stroke="#FFC21A" marker-end="url(#ay)"/>
+    <circle cx="384" cy="384" r="9" fill="#FFC21A"/><text x="384" y="388" text-anchor="middle" class="num">8</text>
+    <text x="400" y="388" class="lbl">ответ и таблица</text>
+  </g>
+
+  <!-- оркестратор <-> Ollama -->
+  <g>
+    <path d="M750 196 H858" class="flow dash" stroke="#A99BFF" marker-end="url(#av)"/>
+    <circle cx="764" cy="184" r="9" fill="#A99BFF"/><text x="764" y="188" text-anchor="middle" class="num">2</text>
+    <text x="780" y="188" class="lbl">промпт</text>
+
+    <path d="M858 256 H750" class="flow" stroke="#A99BFF" marker-end="url(#av)"/>
+    <circle cx="764" cy="244" r="9" fill="#A99BFF"/><text x="764" y="248" text-anchor="middle" class="num">3</text>
+    <text x="780" y="248" class="lbl">call_tool</text>
+
+    <path d="M750 316 H858" class="flow dash" stroke="#A99BFF" marker-end="url(#av)"/>
+    <circle cx="764" cy="304" r="9" fill="#A99BFF"/><text x="764" y="308" text-anchor="middle" class="num">6</text>
+    <text x="780" y="308" class="lbl">кратко</text>
+
+    <path d="M858 396 H750" class="flow" stroke="#A99BFF" marker-end="url(#av)"/>
+    <circle cx="764" cy="384" r="9" fill="#A99BFF"/><text x="764" y="388" text-anchor="middle" class="num">7</text>
+    <text x="780" y="388" class="lbl">final</text>
+  </g>
+
+  <!-- ResultFrom -->
+  <rect x="534" y="450" width="542" height="50" rx="12" fill="#1C1A3A" stroke="#4A3F8F"/>
+  <text x="554" y="472" class="bt">Модель не переписывает данные</text>
+  <text x="554" y="490" class="bs">в ответе 7 она называет инструмент (ResultFrom), оркестратор подставляет его полную таблицу</text>
+
+  <!-- внешние клиенты -->
+  <rect x="380" y="450" width="140" height="50" rx="12" class="card"/>
+  <text x="396" y="472" class="bt">MCP-клиенты</text>
+  <text x="396" y="490" class="bs">личный токен</text>
+  <path d="M380 475 H352" class="flow dash" stroke="#7DD3FC" marker-end="url(#ac)"/>
+
+  <!-- принципы -->
+  <g transform="translate(24 536)">
+    <rect width="252" height="100" rx="14" class="card"/>
+    <circle cx="28" cy="30" r="12" fill="none" stroke="#6EE7A8" stroke-width="2.2"/>
+    <path d="M22 30 l4 4 l8 -8" stroke="#6EE7A8" stroke-width="2.2" fill="none"/>
+    <text x="50" y="35" class="bt">Права пользователя</text>
+    <text x="20" y="64" class="bs">Роли и ограничения на уровне</text>
+    <text x="20" y="81" class="bs">записей того, кто спросил</text>
+
+    <g transform="translate(272 0)">
+      <rect width="252" height="100" rx="14" class="card"/>
+      <rect x="18" y="20" width="20" height="20" rx="4" fill="none" stroke="#FFC21A" stroke-width="2.2"/>
+      <path d="M23 30 H33" stroke="#FFC21A" stroke-width="2.2"/>
+      <text x="50" y="35" class="bt">Только чтение</text>
+      <text x="20" y="64" class="bs">Ни один инструмент не меняет</text>
+      <text x="20" y="81" class="bs">данные базы</text>
+    </g>
+
+    <g transform="translate(544 0)">
+      <rect width="252" height="100" rx="14" class="card"/>
+      <path d="M20 40 L28 22 L36 40 Z" fill="none" stroke="#A99BFF" stroke-width="2.2"/>
+      <text x="50" y="35" class="bt">Своя сеть</text>
+      <text x="20" y="64" class="bs">Модель, оркестратор и база -</text>
+      <text x="20" y="81" class="bs">на ваших компьютерах</text>
+    </g>
+
+    <g transform="translate(816 0)">
+      <rect width="236" height="100" rx="14" class="card"/>
+      <path d="M18 40 V26 M26 40 V20 M34 40 V30" stroke="#7DD3FC" stroke-width="3" stroke-linecap="round"/>
+      <text x="50" y="35" class="bt">Отчеты и журнал</text>
+      <text x="20" y="64" class="bs">Готовые отчеты БСП, журнал</text>
+      <text x="20" y="81" class="bs">регистрации, профиль данных</text>
+    </g>
+  </g>
+</svg>

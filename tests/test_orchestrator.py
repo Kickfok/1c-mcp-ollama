@@ -244,6 +244,50 @@ class OrchestratorTests(unittest.TestCase):
         everything = self.orch.call("GET", "/events", ADMIN_KEY).text + json.dumps(state)
         self.assertNotIn(GOOD_TOKEN, everything, "токен 1С попал в журнал или ответ")
 
+    def test_client_tool_mode(self):
+        """Инструмент выполняет форма 1С: оркестратор выставляет pending_tool и ждет tool_result, MCP не вызывается."""
+        calls_before = len(self.mcp_handler.tokens)
+        r = self.orch.call("POST", "/requests", CLIENT_KEY,
+                           json={"text": "Какая версия?", "user": "Петров", "tool_mode": "client"})
+        self.assertEqual(r.status_code, 202, r.text)
+        request_id = r.json()["request_id"]
+
+        deadline = time.time() + 20
+        pending = None
+        while time.time() < deadline and pending is None:
+            pending = self.orch.call("GET", f"/requests/{request_id}", CLIENT_KEY).json().get("pending_tool")
+            time.sleep(0.1)
+        self.assertIsNotNone(pending, "оркестратор не выставил вызов для формы")
+        self.assertEqual(pending["name"], "get_configuration_version")
+
+        wrong = self.orch.call("POST", f"/requests/{request_id}/tool_result", CLIENT_KEY,
+                               json={"call_id": "чужой", "result": {"content": [], "isError": False}})
+        self.assertEqual(wrong.status_code, 409)
+        bad = self.orch.call("POST", f"/requests/{request_id}/tool_result", CLIENT_KEY,
+                             json={"call_id": pending["id"], "result": "текст"})
+        self.assertEqual(bad.status_code, 400)
+        ok = self.orch.call("POST", f"/requests/{request_id}/tool_result", CLIENT_KEY,
+                            json={"call_id": pending["id"],
+                                  "result": {"content": [{"type": "text", "text": "Версия из сеанса"}],
+                                             "isError": False}})
+        self.assertEqual(ok.status_code, 200, ok.text)
+
+        state = wait_done(self.orch, request_id, CLIENT_KEY)
+        self.assertEqual(state["status"], "done", state)
+        self.assertNotIn("pending_tool", state)
+        self.assertEqual(len(self.mcp_handler.tokens), calls_before, "в режиме client оркестратор вызвал MCP")
+        events = self.orch.call("GET", f"/events?request={request_id}", CLIENT_KEY).json()["events"]
+        result = [e for e in events if e["kind"] == "tool_result"][0]["data"]
+        self.assertIn("Версия из сеанса", result["preview"])
+
+    def test_client_tool_mode_rules(self):
+        r = self.orch.call("POST", "/requests", CLIENT_KEY, json={"text": "x", "tool_mode": "browser"})
+        self.assertEqual(r.status_code, 400)
+        r = self.orch.call("POST", "/", CLIENT_KEY, json={"text": "x", "tool_mode": "client"})
+        self.assertEqual(r.status_code, 400)
+        r = self.orch.call("POST", "/requests/" + "f" * 32 + "/tool_result", CLIENT_KEY, json={"call_id": "x"})
+        self.assertEqual(r.status_code, 404)
+
     def test_revoked_token_error_reaches_model(self):
         request_id = self.ask(token=REVOKED_TOKEN)
         wait_done(self.orch, request_id, CLIENT_KEY)
@@ -388,6 +432,31 @@ class NormalizeTests(unittest.TestCase):
         self.assertEqual(self.normalize(final), final)
 
 
+class OllamaErrorTests(unittest.TestCase):
+    """Короткое описание ошибки Ollama для журнала запроса."""
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, os.path.dirname(ORCHESTRATOR))
+        import LLM_Orchestrator
+        cls.short = staticmethod(LLM_Orchestrator.short_ollama_error)
+
+    def test_cuda_error_is_short(self):
+        info = {"message": "Внутренняя ошибка сервера LLM",
+                "details": {"ollama_error": "llama-server process has terminated: exit status 0xc0000409: "
+                                            "The system detected an overrun... CUDA error: shared object"}}
+        self.assertEqual(self.short(info), "сбой загрузки модели в видеопамять")
+
+    def test_prompt_has_today(self):
+        import LLM_Orchestrator
+        prompt = LLM_Orchestrator.build_prompt([{"role": "user", "content": "Выручка за этот год"}], {}, False)
+        self.assertIn("СЕГОДНЯ: " + time.strftime("%Y-%m-%d"), prompt)
+
+    def test_other_error_first_phrase(self):
+        info = {"message": "Ошибка", "details": {"ollama_error": "model not found: qwen"}}
+        self.assertEqual(self.short(info), "model not found")
+
+
 class RepeatCallTests(unittest.TestCase):
     """Модель повторяет один и тот же вызов: повтор отклоняется, серия повторов завершает вопрос."""
 
@@ -429,6 +498,27 @@ class RepeatCallTests(unittest.TestCase):
         dialog.call_tool(other, 3)
         for step in range(4, 3 + self.orch.MAX_REJECTED_REPEATS):
             self.assertIsNone(dialog.call_tool(first, step))
+
+    def test_result_from_inserts_full_tool_result(self):
+        """ResultFrom: в ответ попадает полный, не обрезанный для контекста результат инструмента."""
+        rows = [[f"Контрагент {i}", i] for i in range(300)]
+        big = json.dumps({"columns": ["Наименование", "Сумма"], "rows": rows}, ensure_ascii=False)
+        self.orch.mcp_call_tool = lambda tool, args: {"content": [{"type": "text", "text": big}], "isError": False}
+        dialog = self.orch.ToolDialog("вопрос")
+        dialog.call_tool({"action": "call_tool", "name": "list_metadata_objects", "arguments": {}}, 1)
+        self.assertIn("РЕЗУЛЬТАТ ОБРЕЗАН", dialog.messages[-1]["content"]["content"][0]["text"])
+        answer = self.orch.final_answer({"action": "final", "Text": "300 контрагентов",
+                                         "ResultFrom": "list_metadata_objects"}, dialog.full_results)
+        self.assertEqual(len(answer["Result"]["rows"]), 300)
+        self.assertEqual(answer["Text"], "300 контрагентов")
+        own = self.orch.final_answer({"action": "final", "Text": "x", "Result": {"a": 1}}, dialog.full_results)
+        self.assertEqual(own["Result"], {"a": 1})
+
+    def test_final_without_result_is_valid(self):
+        """Финальный ответ с ResultFrom и без Result проходит проверку структуры."""
+        self.assertTrue(self.orch.validate_json_structure({"action": "final", "Text": "x", "ResultFrom": "run_query"}))
+        self.assertTrue(self.orch.validate_json_structure({"action": "final", "Text": "данных нет"}))
+        self.assertFalse(self.orch.validate_json_structure({"action": "final", "Result": {}}))
 
     def test_metadata_result_suggests_run_query(self):
         result = {"content": [{"type": "text", "text": "Структура объекта Справочник.Пользователи"}]}
