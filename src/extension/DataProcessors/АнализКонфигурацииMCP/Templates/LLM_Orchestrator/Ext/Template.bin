@@ -25,7 +25,7 @@ from urllib.parse import urlparse, parse_qs
 import requests
 import urllib3
 
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 
 # ================== НАСТРОЙКИ ==================
 # Порядок: значение по умолчанию, затем файл конфигурации (--config), затем переменная окружения.
@@ -1775,6 +1775,8 @@ class ToolDialog:
         # Последний полный (не обрезанный для контекста) результат каждого инструмента: его подставляет в
         # ответ final_answer, когда модель указывает ResultFrom
         self.full_results: Dict[str, Any] = {}
+        # Последний успешный результат-таблица: попадает в ответ, если модель не назвала ResultFrom
+        self.last_table: Optional[Dict[str, Any]] = None
         # Кто выполняет вызов: MCP-сервер 1С по токену или форма 1С в сеансе пользователя
         self.caller = caller or mcp_call_tool
         self.place = "session" if caller else "mcp"
@@ -1823,6 +1825,8 @@ class ToolDialog:
 
         if isinstance(result, dict) and not result.get("isError"):
             self.full_results[tool] = tool_result_value(result)
+            if is_table_result(self.full_results[tool]):
+                self.last_table = self.full_results[tool]
         # Обрезаем слишком большие ответы, чтобы не переполнить контекст
         result = truncate_tool_result(result)
         trace("tool_result", f"Ответ инструмента {tool}: {full_length} симв.",
@@ -1834,14 +1838,23 @@ class ToolDialog:
         return None
 
 
-def final_answer(answer: Dict[str, Any], results: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def is_table_result(value: Any) -> bool:
+    """Результат инструмента в едином формате таблицы: columns и rows."""
+    return isinstance(value, dict) and isinstance(value.get("columns"), list) and isinstance(value.get("rows"), list)
+
+
+def final_answer(answer: Dict[str, Any], results: Optional[Dict[str, Any]] = None,
+                 last_table: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Итоговый ответ модели в формате Success/Text/Result. Если модель указала ResultFrom, в Result
     подставляется полный последний результат этого инструмента: модель не тратит время на переписывание
-    данных и не может их исказить."""
+    данных и не может их исказить. Если модель не указала ни ResultFrom, ни Result, подставляется последняя
+    полученная таблица: модель часто перечисляет данные в Text и забывает назвать источник."""
     result = answer.get("Result", {})
     source = answer.get("ResultFrom")
     if isinstance(source, str) and results and source in results:
         result = results[source]
+    elif not result and last_table is not None:
+        result = last_table
     if is_error_result(result):
         return create_error_response(answer.get("Text", "Произошла ошибка"), result.get("error_type", "unknown"),
                                      result.get("details", {}), False)
@@ -1876,7 +1889,7 @@ def answer_question(rec: QuestionRequest) -> Tuple[int, Dict[str, Any]]:
 
         if action == "final":
             logger.info(f"Запрос завершен за {step} шагов")
-            return 200, final_answer(answer, dialog.full_results)
+            return 200, final_answer(answer, dialog.full_results, dialog.last_table)
         if action == "call_tool":
             stop = dialog.call_tool(answer, step)
             if stop:

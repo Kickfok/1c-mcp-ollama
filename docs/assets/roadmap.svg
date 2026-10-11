@@ -27,7 +27,7 @@
   </style>
   <rect width="1100" height="1406" rx="18" fill="url(#bg)"/>
   <text x="40" y="50" class="h1">Развитие 1C MCP Ollama Bridge</text>
-  <text x="40" y="76" class="sub">Как проект вырос из MCP-сервера в расширении в помощника, который отвечает данными базы, и что дальше</text>
+  <text x="40" y="76" class="sub">Версии от MCP-сервера в расширении 1С до ответов данными базы и план развития</text>
   <rect x="250" y="104" width="826" height="96" rx="14" class="card" stroke-dasharray="6 5"/>
   <circle cx="76" cy="150" r="11" fill="#0B0E20" stroke="#C3C8EA" stroke-width="2.5"/>
   <text x="100" y="146" class="ver" style="fill:#C3C8EA">Основа</text>

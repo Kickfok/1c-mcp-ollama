@@ -69,9 +69,9 @@ def main() -> int:
         "",
         f"Подробно - [docs/INSTALL.md]({REPO}/blob/v{version}/docs/INSTALL.md).",
         "",
-        "> [!WARNING]",
-        "> 15 из 21 инструмента - заглушки с фиксированными демонстрационными данными, "
-        f"см. [docs/TOOLS.md]({REPO}/blob/v{version}/docs/TOOLS.md).",
+        "> [!NOTE]",
+        "> Расширение и оркестратор обновляйте вместе: форма и оркестратор одной версии обмениваются вызовами "
+        f"инструментов. Список инструментов - [docs/TOOLS.md]({REPO}/blob/v{version}/docs/TOOLS.md).",
         "",
         "## Изменения",
     ] + section(version)

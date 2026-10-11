@@ -514,6 +514,20 @@ class RepeatCallTests(unittest.TestCase):
         own = self.orch.final_answer({"action": "final", "Text": "x", "Result": {"a": 1}}, dialog.full_results)
         self.assertEqual(own["Result"], {"a": 1})
 
+    def test_last_table_when_result_from_missing(self):
+        """Модель перечислила данные в Text и не назвала ResultFrom: в ответ попадает последняя таблица."""
+        table = {"columns": ["Наименование"], "rows": [["Наше предприятие"], ["Розничный покупатель"]]}
+        self.orch.mcp_call_tool = lambda tool, args: {
+            "content": [{"type": "text", "text": json.dumps(table, ensure_ascii=False)}], "isError": False}
+        dialog = self.orch.ToolDialog("вопрос")
+        dialog.call_tool({"action": "call_tool", "name": "list_metadata_objects", "arguments": {}}, 1)
+        answer = self.orch.final_answer({"action": "final", "Text": "Наше предприятие и Розничный покупатель"},
+                                        dialog.full_results, dialog.last_table)
+        self.assertEqual(answer["Result"], table)
+        own = self.orch.final_answer({"action": "final", "Text": "x", "Result": {"a": 1}},
+                                     dialog.full_results, dialog.last_table)
+        self.assertEqual(own["Result"], {"a": 1})
+
     def test_final_without_result_is_valid(self):
         """Финальный ответ с ResultFrom и без Result проходит проверку структуры."""
         self.assertTrue(self.orch.validate_json_structure({"action": "final", "Text": "x", "ResultFrom": "run_query"}))
