@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="546" viewBox="0 0 1200 546" role="img" aria-labelledby="t d">
+  <title id="t">1C MCP Ollama Bridge</title>
+  <desc id="d">1C MCP Ollama Bridge: спросите базу 1С обычным языком. Модель qwen2.5-coder:32b работает в Ollama на вашей видеокарте и отвечает данными базы с правами пользователя. Пример реального прогона: вопрос об ошибках журнала регистрации, вызов read_event_log в сеансе пользователя, ответ за 46 секунд. 13 инструментов, ни один не меняет данные, контекст 4096 токенов, хватает 12 ГБ видеопамяти, облачные сервисы не нужны, лицензия MIT.</desc>
+  <defs>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#FFFFFF" stroke-opacity="0.045" stroke-width="1"/>
+    </pattern>
+    <radialGradient id="glowY" cx="12%" cy="0%" r="60%">
+      <stop offset="0" stop-color="#FFC21A" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#FFC21A" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowV" cx="92%" cy="100%" r="60%">
+      <stop offset="0" stop-color="#8B7CFF" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#8B7CFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="brand" x1="0" y1="0" x2="1200" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFC21A"/>
+      <stop offset="1" stop-color="#8B7CFF"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="546" rx="18" fill="#0B0E1C"/>
+  <rect width="1200" height="546" rx="18" fill="url(#grid)"/>
+  <rect width="1200" height="546" rx="18" fill="url(#glowY)"/>
+  <rect width="1200" height="546" rx="18" fill="url(#glowV)"/>
+<svg x="48" y="34" width="40" height="40" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="7" fill="#FFC21A"/>
+  <g transform="translate(-0.7 0.6)">
+    <g fill="none" stroke="#1B1F3B" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <ellipse cx="10" cy="10" rx="4.5" ry="1.8"/>
+      <path d="M5.5 10 V20 C5.5 21 7.5 21.8 10 21.8 C12.5 21.8 14.5 21 14.5 20 V10"/>
+      <path d="M5.5 15 C5.5 16 7.5 16.8 10 16.8 C12.5 16.8 14.5 16 14.5 15"/>
+      <path d="M14.5 15 H19.5"/>
+      <path d="M22 15 L26 9 M22 15 L27 15 M22 15 L26 21"/>
+    </g>
+    <g fill="#1B1F3B">
+      <circle cx="22" cy="15" r="2.5"/><circle cx="26.3" cy="8.6" r="1.4"/>
+      <circle cx="27.4" cy="15" r="1.4"/><circle cx="26.3" cy="21.4" r="1.4"/>
+    </g>
+  </g></svg>
+  <text x="102" y="52" font-family="'JetBrains Mono', Consolas, 'DejaVu Sans Mono', monospace" font-size="15" fill="#E9ECF8" font-weight="700" letter-spacing="2.5">1C MCP OLLAMA BRIDGE</text>
+  <text x="102" y="71" font-family="'JetBrains Mono', Consolas, 'DejaVu Sans Mono', monospace" font-size="12" fill="#FFC21A" letter-spacing="2.5">ЛОКАЛЬНЫЙ ИИ ДЛЯ 1С:ПРЕДПРИЯТИЯ</text>
+  <text x="1152" y="60" font-family="'JetBrains Mono', Consolas, 'DejaVu Sans Mono', monospace" font-size="12" fill="#6B7199" text-anchor="end" letter-spacing="2">MCP · OLLAMA · MIT</text>
+  <text x="48" y="146" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="54" fill="#E9ECF8" font-weight="800">Спросите базу 1С <tspan fill="#FFC21A">обычным языком</tspan><tspan fill="#8B7CFF">.</tspan></text>
+  <text x="48" y="190" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="22" fill="#CDD3EE" font-weight="500">Модель работает на вашей видеокарте и отвечает данными базы <tspan fill="#5EE0A0" font-weight="700">с правами того, кто спросил</tspan>.</text>
+  <text x="48" y="226" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="16" fill="#9AA1C9">qwen2.5-coder:32b в Ollama · 13 инструментов 1С · форма прямо в базе · Cursor и Claude Desktop по MCP</text>
+  <path id="heroLine" d="M48 256 H1152" stroke="#262B4E" stroke-width="1.5"/>
+  <circle r="3" fill="#FFC21A" opacity="0"><animateMotion dur="4.5s" begin="0s" repeatCount="indefinite"><mpath href="#heroLine"/></animateMotion><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.85;1" dur="4.5s" begin="0s" repeatCount="indefinite"/></circle>
+  <rect x="48" y="284" width="1104" height="150" rx="16" fill="#141831" stroke="#262B4E" stroke-width="1.5"/>
+  <text x="76" y="316" font-family="'JetBrains Mono', Consolas, 'DejaVu Sans Mono', monospace" font-size="12" fill="#8B7CFF" letter-spacing="2">РЕАЛЬНЫЙ ПРОГОН · 11.10.2026 · ФОРМА 1С</text>
+  <text x="76" y="350" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="21" fill="#E9ECF8" font-weight="700">«Какие ошибки были в журнале регистрации за последние сутки?»</text>
+  <path id="heroSteps" d="M96 394 H1072" stroke="none"/>
+  <rect x="76" y="372" width="236" height="44" rx="10" fill="#0F1328" stroke="#8B7CFF" stroke-opacity="0.35" stroke-width="1.4"><animate attributeName="stroke-opacity" values="0.35;1;0.35;0.35" keyTimes="0;0.12;0.3;1" dur="6s" begin="0.0s" repeatCount="indefinite"/></rect>
+  <text x="92" y="391" font-family="'JetBrains Mono', Consolas, 'DejaVu Sans Mono', monospace" font-size="14" fill="#8B7CFF" font-weight="700">модель</text>
+  <text x="92" y="408" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="12" fill="#9AA1C9">выбирает инструмент</text>
+  <path d="M316 394 h16 m-5 -4 l5 4 -5 4" fill="none" stroke="#6B7199" stroke-width="1.6" stroke-linecap="round"/>
+  <rect x="336" y="372" width="236" height="44" rx="10" fill="#0F1328" stroke="#FFC21A" stroke-opacity="0.35" stroke-width="1.4"><animate attributeName="stroke-opacity" values="0.35;1;0.35;0.35" keyTimes="0;0.12;0.3;1" dur="6s" begin="1.2s" repeatCount="indefinite"/></rect>
+  <text x="352" y="391" font-family="'JetBrains Mono', Consolas, 'DejaVu Sans Mono', monospace" font-size="14" fill="#FFC21A" font-weight="700">read_event_log</text>
+  <text x="352" y="408" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="12" fill="#9AA1C9">отбор: уровень «Ошибка»</text>
+  <path d="M576 394 h16 m-5 -4 l5 4 -5 4" fill="none" stroke="#6B7199" stroke-width="1.6" stroke-linecap="round"/>
+  <rect x="596" y="372" width="236" height="44" rx="10" fill="#0F1328" stroke="#5EE0A0" stroke-opacity="0.35" stroke-width="1.4"><animate attributeName="stroke-opacity" values="0.35;1;0.35;0.35" keyTimes="0;0.12;0.3;1" dur="6s" begin="2.4s" repeatCount="indefinite"/></rect>
+  <text x="612" y="391" font-family="'JetBrains Mono', Consolas, 'DejaVu Sans Mono', monospace" font-size="14" fill="#5EE0A0" font-weight="700">1С CALL</text>
+  <text x="612" y="408" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="12" fill="#9AA1C9">сеанс пользователя</text>
+  <path d="M836 394 h16 m-5 -4 l5 4 -5 4" fill="none" stroke="#6B7199" stroke-width="1.6" stroke-linecap="round"/>
+  <rect x="856" y="372" width="236" height="44" rx="10" fill="#0F1328" stroke="#6CCFF6" stroke-opacity="0.35" stroke-width="1.4"><animate attributeName="stroke-opacity" values="0.35;1;0.35;0.35" keyTimes="0;0.12;0.3;1" dur="6s" begin="3.5999999999999996s" repeatCount="indefinite"/></rect>
+  <text x="872" y="391" font-family="'JetBrains Mono', Consolas, 'DejaVu Sans Mono', monospace" font-size="14" fill="#6CCFF6" font-weight="700">ответ за 46 с</text>
+  <text x="872" y="408" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="12" fill="#9AA1C9">вывод и таблица</text>
+  <circle r="3.5" fill="#FFC21A" opacity="0"><animateMotion dur="6s" begin="0s" repeatCount="indefinite"><mpath href="#heroSteps"/></animateMotion><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.85;1" dur="6s" begin="0s" repeatCount="indefinite"/></circle>
+  <rect x="48.0" y="458" width="172" height="64" rx="12" fill="#141831" stroke="#FFC21A" stroke-opacity="0.55" stroke-width="1.4"/>
+  <text x="134.0" y="487" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="22" fill="#FFC21A" font-weight="800" text-anchor="middle">13</text>
+  <text x="134.0" y="508" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="12" fill="#9AA1C9" font-weight="500" text-anchor="middle" letter-spacing="0.5">ИНСТРУМЕНТОВ</text>
+  <rect x="234.4" y="458" width="172" height="64" rx="12" fill="#141831" stroke="#5EE0A0" stroke-opacity="0.55" stroke-width="1.4"/>
+  <text x="320.4" y="487" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="22" fill="#5EE0A0" font-weight="800" text-anchor="middle">0</text>
+  <text x="320.4" y="508" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="12" fill="#9AA1C9" font-weight="500" text-anchor="middle" letter-spacing="0.5">ИЗМЕНЕНИЙ ДАННЫХ</text>
+  <rect x="420.8" y="458" width="172" height="64" rx="12" fill="#141831" stroke="#8B7CFF" stroke-opacity="0.55" stroke-width="1.4"/>
+  <text x="506.8" y="487" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="22" fill="#8B7CFF" font-weight="800" text-anchor="middle">4 096</text>
+  <text x="506.8" y="508" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="12" fill="#9AA1C9" font-weight="500" text-anchor="middle" letter-spacing="0.5">ТОКЕНОВ КОНТЕКСТА</text>
+  <rect x="607.2" y="458" width="172" height="64" rx="12" fill="#141831" stroke="#6CCFF6" stroke-opacity="0.55" stroke-width="1.4"/>
+  <text x="693.2" y="487" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="22" fill="#6CCFF6" font-weight="800" text-anchor="middle">12 ГБ</text>
+  <text x="693.2" y="508" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="12" fill="#9AA1C9" font-weight="500" text-anchor="middle" letter-spacing="0.5">ВИДЕОПАМЯТИ</text>
+  <rect x="793.6" y="458" width="172" height="64" rx="12" fill="#141831" stroke="#F28CB1" stroke-opacity="0.55" stroke-width="1.4"/>
+  <text x="879.6" y="487" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="22" fill="#F28CB1" font-weight="800" text-anchor="middle">0</text>
+  <text x="879.6" y="508" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="12" fill="#9AA1C9" font-weight="500" text-anchor="middle" letter-spacing="0.5">ОБЛАЧНЫХ СЕРВИСОВ</text>
+  <rect x="980.0" y="458" width="172" height="64" rx="12" fill="#141831" stroke="#FFC21A" stroke-opacity="0.55" stroke-width="1.4"/>
+  <text x="1066.0" y="487" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="22" fill="#FFC21A" font-weight="800" text-anchor="middle">MIT</text>
+  <text x="1066.0" y="508" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="12" fill="#9AA1C9" font-weight="500" text-anchor="middle" letter-spacing="0.5">ОТКРЫТЫЙ КОД</text>
+</svg>

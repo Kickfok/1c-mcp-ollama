@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="534" viewBox="0 0 1200 534" role="img" aria-labelledby="t d">
+  <title id="t">Для кого 1C MCP Ollama Bridge</title>
+  <desc id="d">Для кого 1C MCP Ollama Bridge. Руководителям: Выручка и прибыль. Модель находит готовый отчет БСП, задает период и отвечает выводом в одну-три фразы и таблицей. Аналитикам: Где данные и сколько их. data_profile показывает таблицы с записями за период, read_table считает итоги без языка запросов. Программистам: Метаданные и запросы. Структура объектов, кто пишет в регистр, образцы запросов из схем отчетов, run_query. Администраторам: Журнал и диагностика. Ошибки журнала регистрации, 10 проверок подключения, монитор шагов модели. Безопасности: Данные не покидают сеть. Инструменты только читают, права и RLS пользователя, ключи в хранилище БСП. Разработчикам: Открытый протокол MCP. Новый инструмент - обработка и два метода. Подключаются Cursor и Claude Desktop.</desc>
+  <defs>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#FFFFFF" stroke-opacity="0.045" stroke-width="1"/>
+    </pattern>
+    <radialGradient id="glowY" cx="12%" cy="0%" r="60%">
+      <stop offset="0" stop-color="#FFC21A" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#FFC21A" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowV" cx="92%" cy="100%" r="60%">
+      <stop offset="0" stop-color="#8B7CFF" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#8B7CFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="brand" x1="0" y1="0" x2="1200" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFC21A"/>
+      <stop offset="1" stop-color="#8B7CFF"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="534" rx="18" fill="#0B0E1C"/>
+  <rect width="1200" height="534" rx="18" fill="url(#grid)"/>
+  <rect width="1200" height="534" rx="18" fill="url(#glowY)"/>
+  <rect width="1200" height="534" rx="18" fill="url(#glowV)"/>
+<text x="40" y="52" font-family="'JetBrains Mono', Consolas, 'DejaVu Sans Mono', monospace" font-size="13" fill="#FFC21A" letter-spacing="2.5">ДЛЯ КОГО</text>
+  <path d="M140 48 H1160" stroke="#262B4E" stroke-width="1.5"/>
+  <text x="40" y="96" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="28" fill="#E9ECF8" font-weight="700">Одна форма в базе 1С. <tspan fill="#FFC21A">Каждый получает ответ по своей задаче.</tspan></text>
+  <rect x="40" y="128" width="362" height="168" rx="16" fill="#141831" stroke="#262B4E" stroke-width="1.5"/>
+  <rect x="40" y="148" width="4" height="128" rx="2" fill="#FFC21A"><animate attributeName="opacity" values="1;0.35;1" dur="6s" begin="0s" repeatCount="indefinite"/></rect>
+  <text x="66" y="168" font-family="'JetBrains Mono', Consolas, 'DejaVu Sans Mono', monospace" font-size="12" fill="#FFC21A" letter-spacing="2">РУКОВОДИТЕЛЯМ</text>
+  <text x="66" y="198" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="21" fill="#E9ECF8" font-weight="800">Выручка и прибыль</text>
+  <text x="66" y="228" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="15" fill="#C9CEE8">Модель находит готовый отчет БСП,</text>
+  <text x="66" y="250" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="15" fill="#C9CEE8">задает период и отвечает выводом</text>
+  <text x="66" y="272" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="15" fill="#C9CEE8">в одну-три фразы и таблицей.</text>
+  <rect x="419" y="128" width="362" height="168" rx="16" fill="#141831" stroke="#262B4E" stroke-width="1.5"/>
+  <rect x="419" y="148" width="4" height="128" rx="2" fill="#6CCFF6"><animate attributeName="opacity" values="1;0.35;1" dur="6s" begin="1s" repeatCount="indefinite"/></rect>
+  <text x="445" y="168" font-family="'JetBrains Mono', Consolas, 'DejaVu Sans Mono', monospace" font-size="12" fill="#6CCFF6" letter-spacing="2">АНАЛИТИКАМ</text>
+  <text x="445" y="198" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="21" fill="#E9ECF8" font-weight="800">Где данные и сколько их</text>
+  <text x="445" y="228" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="15" fill="#C9CEE8">data_profile показывает таблицы</text>
+  <text x="445" y="250" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="15" fill="#C9CEE8">с записями за период, read_table</text>
+  <text x="445" y="272" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="15" fill="#C9CEE8">считает итоги без языка запросов.</text>
+  <rect x="798" y="128" width="362" height="168" rx="16" fill="#141831" stroke="#262B4E" stroke-width="1.5"/>
+  <rect x="798" y="148" width="4" height="128" rx="2" fill="#8B7CFF"><animate attributeName="opacity" values="1;0.35;1" dur="6s" begin="2s" repeatCount="indefinite"/></rect>
+  <text x="824" y="168" font-family="'JetBrains Mono', Consolas, 'DejaVu Sans Mono', monospace" font-size="12" fill="#8B7CFF" letter-spacing="2">ПРОГРАММИСТАМ</text>
+  <text x="824" y="198" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="21" fill="#E9ECF8" font-weight="800">Метаданные и запросы</text>
+  <text x="824" y="228" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="15" fill="#C9CEE8">Структура объектов, кто пишет</text>
+  <text x="824" y="250" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="15" fill="#C9CEE8">в регистр, образцы запросов</text>
+  <text x="824" y="272" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="15" fill="#C9CEE8">из схем отчетов, run_query.</text>
+  <rect x="40" y="314" width="362" height="168" rx="16" fill="#141831" stroke="#262B4E" stroke-width="1.5"/>
+  <rect x="40" y="334" width="4" height="128" rx="2" fill="#5EE0A0"><animate attributeName="opacity" values="1;0.35;1" dur="6s" begin="3s" repeatCount="indefinite"/></rect>
+  <text x="66" y="354" font-family="'JetBrains Mono', Consolas, 'DejaVu Sans Mono', monospace" font-size="12" fill="#5EE0A0" letter-spacing="2">АДМИНИСТРАТОРАМ</text>
+  <text x="66" y="384" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="21" fill="#E9ECF8" font-weight="800">Журнал и диагностика</text>
+  <text x="66" y="414" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="15" fill="#C9CEE8">Ошибки журнала регистрации,</text>
+  <text x="66" y="436" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="15" fill="#C9CEE8">10 проверок подключения,</text>
+  <text x="66" y="458" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="15" fill="#C9CEE8">монитор шагов модели.</text>
+  <rect x="419" y="314" width="362" height="168" rx="16" fill="#141831" stroke="#262B4E" stroke-width="1.5"/>
+  <rect x="419" y="334" width="4" height="128" rx="2" fill="#FF6B7A"><animate attributeName="opacity" values="1;0.35;1" dur="6s" begin="4s" repeatCount="indefinite"/></rect>
+  <text x="445" y="354" font-family="'JetBrains Mono', Consolas, 'DejaVu Sans Mono', monospace" font-size="12" fill="#FF6B7A" letter-spacing="2">БЕЗОПАСНОСТИ</text>
+  <text x="445" y="384" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="21" fill="#E9ECF8" font-weight="800">Данные не покидают сеть</text>
+  <text x="445" y="414" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="15" fill="#C9CEE8">Инструменты только читают,</text>
+  <text x="445" y="436" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="15" fill="#C9CEE8">права и RLS пользователя,</text>
+  <text x="445" y="458" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="15" fill="#C9CEE8">ключи в хранилище БСП.</text>
+  <rect x="798" y="314" width="362" height="168" rx="16" fill="#141831" stroke="#262B4E" stroke-width="1.5"/>
+  <rect x="798" y="334" width="4" height="128" rx="2" fill="#F28CB1"><animate attributeName="opacity" values="1;0.35;1" dur="6s" begin="5s" repeatCount="indefinite"/></rect>
+  <text x="824" y="354" font-family="'JetBrains Mono', Consolas, 'DejaVu Sans Mono', monospace" font-size="12" fill="#F28CB1" letter-spacing="2">РАЗРАБОТЧИКАМ</text>
+  <text x="824" y="384" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="21" fill="#E9ECF8" font-weight="800">Открытый протокол MCP</text>
+  <text x="824" y="414" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="15" fill="#C9CEE8">Новый инструмент - обработка</text>
+  <text x="824" y="436" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="15" fill="#C9CEE8">и два метода. Подключаются</text>
+  <text x="824" y="458" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="15" fill="#C9CEE8">Cursor и Claude Desktop.</text>
+  <text x="40" y="512" font-family="'JetBrains Mono', Consolas, 'DejaVu Sans Mono', monospace" font-size="13" fill="#6B7199">13 инструментов · ни один не меняет данные · форма работает в тонком клиенте и веб-клиенте</text>
+</svg>

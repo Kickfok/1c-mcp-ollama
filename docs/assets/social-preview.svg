@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="t d">
+  <title id="t">1C MCP Ollama Bridge</title>
+  <desc id="d">Обложка репозитория</desc>
+  <defs>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#FFFFFF" stroke-opacity="0.045" stroke-width="1"/>
+    </pattern>
+    <radialGradient id="glowY" cx="12%" cy="0%" r="60%">
+      <stop offset="0" stop-color="#FFC21A" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#FFC21A" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowV" cx="92%" cy="100%" r="60%">
+      <stop offset="0" stop-color="#8B7CFF" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#8B7CFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="brand" x1="0" y1="0" x2="1200" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFC21A"/>
+      <stop offset="1" stop-color="#8B7CFF"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="640" rx="0" fill="#0B0E1C"/>
+  <rect width="1280" height="640" rx="0" fill="url(#grid)"/>
+  <rect width="1280" height="640" rx="0" fill="url(#glowY)"/>
+  <rect width="1280" height="640" rx="0" fill="url(#glowV)"/>
+<svg x="80" y="96" width="120" height="120" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="7" fill="#FFC21A"/>
+  <g transform="translate(-0.7 0.6)">
+    <g fill="none" stroke="#1B1F3B" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <ellipse cx="10" cy="10" rx="4.5" ry="1.8"/>
+      <path d="M5.5 10 V20 C5.5 21 7.5 21.8 10 21.8 C12.5 21.8 14.5 21 14.5 20 V10"/>
+      <path d="M5.5 15 C5.5 16 7.5 16.8 10 16.8 C12.5 16.8 14.5 16 14.5 15"/>
+      <path d="M14.5 15 H19.5"/>
+      <path d="M22 15 L26 9 M22 15 L27 15 M22 15 L26 21"/>
+    </g>
+    <g fill="#1B1F3B">
+      <circle cx="22" cy="15" r="2.5"/><circle cx="26.3" cy="8.6" r="1.4"/>
+      <circle cx="27.4" cy="15" r="1.4"/><circle cx="26.3" cy="21.4" r="1.4"/>
+    </g>
+  </g></svg>
+  <text x="80" y="300" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="76" fill="#E9ECF8" font-weight="800">1C MCP Ollama Bridge</text>
+  <text x="80" y="370" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="40" fill="#CDD3EE" font-weight="600">Спросите базу 1С <tspan fill="#FFC21A">обычным языком</tspan>.</text>
+  <text x="80" y="430" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="24" fill="#9AA1C9">Локальная модель в Ollama · права пользователя 1С · 13 инструментов · MIT</text>
+  <path d="M80 486 H1200" stroke="url(#brand)" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+  <text x="80" y="548" font-family="'JetBrains Mono', Consolas, 'DejaVu Sans Mono', monospace" font-size="26" fill="#6B7199">github.com/Kickfok/1c-mcp-ollama</text>
+</svg>

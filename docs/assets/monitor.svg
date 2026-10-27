@@ -21,71 +21,7 @@
 </style>
 <rect width="1360" height="820" fill="#0B0E21"/>
 <rect width="1360" height="98" fill="#0F1330"/><line x1="0" y1="98" x2="1360" y2="98" stroke="#262C57"/>
-<svg x="20" y="24" width="48" height="48" viewBox="0 0 256 256"><defs>
-    <linearGradient id="lg-bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#1B1F3B"/>
-      <stop offset="1" stop-color="#0D1024"/>
-    </linearGradient>
-    <linearGradient id="lg-arc" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#FFC21A"/>
-      <stop offset="1" stop-color="#8B7CFF"/>
-    </linearGradient>
-    <linearGradient id="lg-db" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FFD54A"/>
-      <stop offset="1" stop-color="#F5A800"/>
-    </linearGradient>
-    <radialGradient id="lg-glow" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0" stop-color="#8B7CFF" stop-opacity="0.55"/>
-      <stop offset="1" stop-color="#8B7CFF" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
-
-  <rect width="256" height="256" rx="56" fill="url(#lg-bg)"/>
-  <g transform="translate(0 22)">
-
-  <!-- База 1С: цилиндр -->
-  <g transform="translate(26 112)">
-    <path d="M0 14 v52 a34 12 0 0 0 68 0 v-52" fill="url(#lg-db)"/>
-    <ellipse cx="34" cy="14" rx="34" ry="12" fill="#FFE27A"/>
-    <path d="M0 33 a34 12 0 0 0 68 0" fill="none" stroke="#C98500" stroke-width="2.5" opacity="0.55"/>
-    <path d="M0 50 a34 12 0 0 0 68 0" fill="none" stroke="#C98500" stroke-width="2.5" opacity="0.55"/>
-    <text x="34" y="54" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="800" fill="#1B1F3B">1C</text>
-  </g>
-
-  <!-- Языковая модель: узлы нейросети -->
-  <circle cx="196" cy="140" r="46" fill="url(#lg-glow)"/>
-  <g stroke="#B9B0FF" stroke-width="2.5" opacity="0.9">
-    <line x1="196" y1="112" x2="172" y2="140"/>
-    <line x1="196" y1="112" x2="220" y2="140"/>
-    <line x1="172" y1="140" x2="196" y2="168"/>
-    <line x1="220" y1="140" x2="196" y2="168"/>
-    <line x1="172" y1="140" x2="220" y2="140"/>
-    <line x1="196" y1="112" x2="196" y2="168"/>
-  </g>
-  <g fill="#8B7CFF" stroke="#E4E0FF" stroke-width="2.5">
-    <circle cx="196" cy="112" r="8"/>
-    <circle cx="172" cy="140" r="8"/>
-    <circle cx="220" cy="140" r="8"/>
-    <circle cx="196" cy="168" r="8"/>
-  </g>
-
-  <!-- Мост MCP -->
-  <path d="M60 116 C 92 40, 164 40, 196 98" fill="none" stroke="url(#lg-arc)" stroke-width="9" stroke-linecap="round"/>
-  <g stroke-width="3" stroke-linecap="round">
-    <line x1="92" y1="77" x2="92" y2="118" stroke="#E8B53A"/>
-    <line x1="128" y1="64" x2="128" y2="118" stroke="#C3A06A"/>
-    <line x1="164" y1="72" x2="164" y2="118" stroke="#A493E8"/>
-  </g>
-  <line x1="66" y1="120" x2="184" y2="120" stroke="#5B5F86" stroke-width="5" stroke-linecap="round"/>
-  <rect x="98" y="38" width="60" height="24" rx="12" fill="#0D1024" stroke="url(#lg-arc)" stroke-width="2.5"/>
-  <text x="128" y="55" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" fill="#FFFFFF" letter-spacing="1">MCP</text>
-
-  <!-- Поток данных по мосту -->
-  <circle cx="92" cy="72" r="4" fill="#FFC21A"/>
-  <circle cx="164" cy="68" r="4" fill="#A99CFF"/>
-
-  </g>
-</svg>
+<svg x="20" y="24" width="48" height="48" viewBox="0 0 32 32">   <rect width="32" height="32" rx="7" fill="#FFC21A"/>   <g transform="translate(-0.7 0.6)">     <g fill="none" stroke="#1B1F3B" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">       <ellipse cx="10" cy="10" rx="4.5" ry="1.8"/>       <path d="M5.5 10 V20 C5.5 21 7.5 21.8 10 21.8 C12.5 21.8 14.5 21 14.5 20 V10"/>       <path d="M5.5 15 C5.5 16 7.5 16.8 10 16.8 C12.5 16.8 14.5 16 14.5 15"/>       <path d="M14.5 15 H19.5"/>       <path d="M22 15 L26 9 M22 15 L27 15 M22 15 L26 21"/>     </g>     <g fill="#1B1F3B">       <circle cx="22" cy="15" r="2.5"/><circle cx="26.3" cy="8.6" r="1.4"/>       <circle cx="27.4" cy="15" r="1.4"/><circle cx="26.3" cy="21.4" r="1.4"/>     </g>   </g></svg>
 <text x="80" y="38" class="ui" style="font-size:19px;font-weight:800"><tspan fill="#FFC21A">1C</tspan><tspan fill="#FFFFFF"> MCP </tspan><tspan fill="#8B7CFF">Ollama</tspan><tspan fill="#FFFFFF"> Bridge</tspan></text>
 <text x="80" y="60" class="ui dim">Монитор оркестратора: запросы, шаги модели,</text>
 <text x="80" y="78" class="ui dim">вызовы инструментов 1С</text>

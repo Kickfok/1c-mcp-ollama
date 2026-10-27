@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="358" viewBox="0 0 1200 358" role="img" aria-labelledby="t d">
+  <title id="t">Установка 1C MCP Ollama Bridge в три шага</title>
+  <desc id="d">Три шага до первого ответа. 1. Расширение в базу: 1C-MCP-Ollama-Bridge.cfe, публикация /hs/mcp, роль для пользователей. 2. Модель и оркестратор: ollama pull qwen2.5-coder:32b, python LLM_Orchestrator.py, ключи создаются сами. 3. Вопрос в форме: Анализ конфигурации MCP, адрес и ключ в настройках, Ctrl+Enter - и ответ.</desc>
+  <defs>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#FFFFFF" stroke-opacity="0.045" stroke-width="1"/>
+    </pattern>
+    <radialGradient id="glowY" cx="12%" cy="0%" r="60%">
+      <stop offset="0" stop-color="#FFC21A" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#FFC21A" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowV" cx="92%" cy="100%" r="60%">
+      <stop offset="0" stop-color="#8B7CFF" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#8B7CFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="brand" x1="0" y1="0" x2="1200" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFC21A"/>
+      <stop offset="1" stop-color="#8B7CFF"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="358" rx="18" fill="#0B0E1C"/>
+  <rect width="1200" height="358" rx="18" fill="url(#grid)"/>
+  <rect width="1200" height="358" rx="18" fill="url(#glowY)"/>
+  <rect width="1200" height="358" rx="18" fill="url(#glowV)"/>
+<text x="40" y="52" font-family="'JetBrains Mono', Consolas, 'DejaVu Sans Mono', monospace" font-size="13" fill="#FFC21A" letter-spacing="2.5">ТРИ ШАГА</text>
+  <path d="M140 48 H1160" stroke="#262B4E" stroke-width="1.5"/>
+  <text x="40" y="96" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="28" fill="#E9ECF8" font-weight="700">Расширение <tspan fill="#6B7199">→</tspan> модель <tspan fill="#6B7199">→</tspan> <tspan fill="#5EE0A0">первый ответ.</tspan></text>
+  <rect x="40" y="132" width="340" height="172" rx="16" fill="#141831" stroke="#FFC21A" stroke-opacity="0.4" stroke-width="1.5"><animate attributeName="stroke-opacity" values="0.4;1;0.4;0.4" keyTimes="0;0.15;0.35;1" dur="6s" begin="0s" repeatCount="indefinite"/></rect>
+  <circle cx="80" cy="174" r="18" fill="#FFC21A"/>
+  <text x="80" y="181" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="18" fill="#0B0E1C" font-weight="800" text-anchor="middle">1</text>
+  <text x="110" y="181" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="21" fill="#E9ECF8" font-weight="800">Расширение в базу</text>
+  <text x="64" y="228" font-family="'JetBrains Mono', Consolas, 'DejaVu Sans Mono', monospace" font-size="14" fill="#C9CEE8">1C-MCP-Ollama-Bridge.cfe</text>
+  <text x="64" y="254" font-family="'JetBrains Mono', Consolas, 'DejaVu Sans Mono', monospace" font-size="14" fill="#C9CEE8">публикация /hs/mcp</text>
+  <text x="64" y="280" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="14" fill="#C9CEE8">роль для пользователей</text>
+  <path id="step0" d="M388 218 H442" stroke="#6B7199" stroke-width="2" stroke-dasharray="4 5"/>
+  <path d="M435 212 l7 6 -7 6" fill="none" stroke="#6B7199" stroke-width="2" stroke-linecap="round"/>
+  <circle r="4" fill="#FFC21A" opacity="0"><animateMotion dur="2s" begin="0s" repeatCount="indefinite"><mpath href="#step0"/></animateMotion><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.85;1" dur="2s" begin="0s" repeatCount="indefinite"/></circle>
+  <rect x="450" y="132" width="340" height="172" rx="16" fill="#141831" stroke="#8B7CFF" stroke-opacity="0.4" stroke-width="1.5"><animate attributeName="stroke-opacity" values="0.4;1;0.4;0.4" keyTimes="0;0.15;0.35;1" dur="6s" begin="2s" repeatCount="indefinite"/></rect>
+  <circle cx="490" cy="174" r="18" fill="#8B7CFF"/>
+  <text x="490" y="181" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="18" fill="#0B0E1C" font-weight="800" text-anchor="middle">2</text>
+  <text x="520" y="181" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="21" fill="#E9ECF8" font-weight="800">Модель и оркестратор</text>
+  <text x="474" y="228" font-family="'JetBrains Mono', Consolas, 'DejaVu Sans Mono', monospace" font-size="14" fill="#C9CEE8">ollama pull qwen2.5-coder:32b</text>
+  <text x="474" y="254" font-family="'JetBrains Mono', Consolas, 'DejaVu Sans Mono', monospace" font-size="14" fill="#C9CEE8">python LLM_Orchestrator.py</text>
+  <text x="474" y="280" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="14" fill="#C9CEE8">ключи создаются сами</text>
+  <path id="step1" d="M798 218 H852" stroke="#6B7199" stroke-width="2" stroke-dasharray="4 5"/>
+  <path d="M845 212 l7 6 -7 6" fill="none" stroke="#6B7199" stroke-width="2" stroke-linecap="round"/>
+  <circle r="4" fill="#8B7CFF" opacity="0"><animateMotion dur="2s" begin="1s" repeatCount="indefinite"><mpath href="#step1"/></animateMotion><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.85;1" dur="2s" begin="1s" repeatCount="indefinite"/></circle>
+  <rect x="860" y="132" width="340" height="172" rx="16" fill="#141831" stroke="#5EE0A0" stroke-opacity="0.4" stroke-width="1.5"><animate attributeName="stroke-opacity" values="0.4;1;0.4;0.4" keyTimes="0;0.15;0.35;1" dur="6s" begin="4s" repeatCount="indefinite"/></rect>
+  <circle cx="900" cy="174" r="18" fill="#5EE0A0"/>
+  <text x="900" y="181" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="18" fill="#0B0E1C" font-weight="800" text-anchor="middle">3</text>
+  <text x="930" y="181" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="21" fill="#E9ECF8" font-weight="800">Вопрос в форме</text>
+  <text x="884" y="228" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="14" fill="#C9CEE8">Анализ конфигурации MCP</text>
+  <text x="884" y="254" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="14" fill="#C9CEE8">адрес и ключ в настройках</text>
+  <text x="884" y="280" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="14" fill="#C9CEE8">Ctrl+Enter - и ответ</text>
+  <text x="40" y="336" font-family="'JetBrains Mono', Consolas, 'DejaVu Sans Mono', monospace" font-size="13" fill="#6B7199">Подробно: docs/INSTALL.md и инструкция администратора</text>
+  <text x="1160" y="336" font-family="'JetBrains Mono', Consolas, 'DejaVu Sans Mono', monospace" font-size="13" fill="#6B7199" text-anchor="end">MIT · бесплатно</text>
+</svg>

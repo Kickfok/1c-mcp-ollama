@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="584" viewBox="0 0 1200 584" role="img" aria-labelledby="t d">
+  <title id="t">Зачем 1C MCP Ollama Bridge</title>
+  <desc id="d">Зачем 1C MCP Ollama Bridge: восемь задач, как их решают сейчас и как с мостом. Цифру из базы просят у программиста или ждут отчет - Вопрос обычным языком: в форме 1С, ответ за минуту-две. Облачный ИИ: данные базы уходят во внешний сервис - Модель в Ollama: на вашем компьютере или сервере. Нейросеть видит больше, чем положено сотруднику - Сеанс пользователя: роли и ограничения RLS как в 1С. ИИ уверенно пересказывает и путает цифры - Таблица из базы целиком: модель пишет только вывод. Непонятно, в каких таблицах данные за период - data_profile: проверяет таблицы пачками за 15 секунд. Нужный отчет есть, но его надо найти и настроить - Готовые отчеты БСП: модель находит вариант и задает период. Журнал регистрации разбирают вручную - read_event_log: отбор по уровню, событию, пользователю. Доработка мешает обновлять типовую конфигурацию - Отдельное расширение: ни одного заимствованного объекта.</desc>
+  <defs>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#FFFFFF" stroke-opacity="0.045" stroke-width="1"/>
+    </pattern>
+    <radialGradient id="glowY" cx="12%" cy="0%" r="60%">
+      <stop offset="0" stop-color="#FFC21A" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#FFC21A" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowV" cx="92%" cy="100%" r="60%">
+      <stop offset="0" stop-color="#8B7CFF" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#8B7CFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="brand" x1="0" y1="0" x2="1200" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFC21A"/>
+      <stop offset="1" stop-color="#8B7CFF"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="584" rx="18" fill="#0B0E1C"/>
+  <rect width="1200" height="584" rx="18" fill="url(#grid)"/>
+  <rect width="1200" height="584" rx="18" fill="url(#glowY)"/>
+  <rect width="1200" height="584" rx="18" fill="url(#glowV)"/>
+<text x="40" y="52" font-family="'JetBrains Mono', Consolas, 'DejaVu Sans Mono', monospace" font-size="13" fill="#FFC21A" letter-spacing="2.5">ЗАЧЕМ</text>
+  <path d="M109 48 H1160" stroke="#262B4E" stroke-width="1.5"/>
+  <text x="40" y="98" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="30" fill="#E9ECF8" font-weight="700">Чтобы узнать цифру из 1С, <tspan fill="#FFC21A">не нужен программист</tspan> и выгрузка в Excel.</text>
+  <path d="M48 142 l8 8 m0 -8 l-8 8" stroke="#FF6B7A" stroke-width="2" stroke-linecap="round"/>
+  <text x="70" y="152" font-family="'JetBrains Mono', Consolas, 'DejaVu Sans Mono', monospace" font-size="13" fill="#FF6B7A" letter-spacing="2.5">КАК СЕЙЧАС</text>
+  <path d="M628 147 l4 4 8 -9" fill="none" stroke="#5EE0A0" stroke-width="2" stroke-linecap="round"/>
+  <text x="652" y="152" font-family="'JetBrains Mono', Consolas, 'DejaVu Sans Mono', monospace" font-size="13" fill="#5EE0A0" letter-spacing="2.5">КАК С 1C MCP OLLAMA BRIDGE</text>
+  <path d="M40 168 H1160" stroke="#262B4E" stroke-width="1.5"/>
+  <path d="M610 176 V544" stroke="#262B4E" stroke-width="1.5"/>
+  <path d="M50 197 l7 7 m0 -7 l-7 7" stroke="#FF6B7A" stroke-opacity="0.8" stroke-width="1.6" stroke-linecap="round"/>
+  <text x="72" y="206" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="16" fill="#C9CEE8">Цифру из базы просят у программиста или ждут отчет</text>
+  <path d="M630 200 l4 4 8 -9" fill="none" stroke="#5EE0A0" stroke-width="2" stroke-linecap="round"><animate attributeName="stroke-opacity" values="1;0.35;1" dur="8s" begin="0s" repeatCount="indefinite"/></path>
+  <text x="652" y="206" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="16" fill="#C9CEE8"><tspan fill="#5EE0A0" font-weight="700">Вопрос обычным языком</tspan> - в форме 1С, ответ за минуту-две</text>
+  <path d="M40 224 H1160" stroke="#FFFFFF" stroke-opacity="0.04" stroke-width="1"/>
+  <path d="M50 243 l7 7 m0 -7 l-7 7" stroke="#FF6B7A" stroke-opacity="0.8" stroke-width="1.6" stroke-linecap="round"/>
+  <text x="72" y="252" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="16" fill="#C9CEE8">Облачный ИИ: данные базы уходят во внешний сервис</text>
+  <path d="M630 246 l4 4 8 -9" fill="none" stroke="#5EE0A0" stroke-width="2" stroke-linecap="round"><animate attributeName="stroke-opacity" values="1;0.35;1" dur="8s" begin="1s" repeatCount="indefinite"/></path>
+  <text x="652" y="252" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="16" fill="#C9CEE8"><tspan fill="#5EE0A0" font-weight="700">Модель в Ollama</tspan> - на вашем компьютере или сервере</text>
+  <path d="M40 270 H1160" stroke="#FFFFFF" stroke-opacity="0.04" stroke-width="1"/>
+  <path d="M50 289 l7 7 m0 -7 l-7 7" stroke="#FF6B7A" stroke-opacity="0.8" stroke-width="1.6" stroke-linecap="round"/>
+  <text x="72" y="298" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="16" fill="#C9CEE8">Нейросеть видит больше, чем положено сотруднику</text>
+  <path d="M630 292 l4 4 8 -9" fill="none" stroke="#5EE0A0" stroke-width="2" stroke-linecap="round"><animate attributeName="stroke-opacity" values="1;0.35;1" dur="8s" begin="2s" repeatCount="indefinite"/></path>
+  <text x="652" y="298" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="16" fill="#C9CEE8"><tspan fill="#5EE0A0" font-weight="700">Сеанс пользователя</tspan> - роли и ограничения RLS как в 1С</text>
+  <path d="M40 316 H1160" stroke="#FFFFFF" stroke-opacity="0.04" stroke-width="1"/>
+  <path d="M50 335 l7 7 m0 -7 l-7 7" stroke="#FF6B7A" stroke-opacity="0.8" stroke-width="1.6" stroke-linecap="round"/>
+  <text x="72" y="344" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="16" fill="#C9CEE8">ИИ уверенно пересказывает и путает цифры</text>
+  <path d="M630 338 l4 4 8 -9" fill="none" stroke="#5EE0A0" stroke-width="2" stroke-linecap="round"><animate attributeName="stroke-opacity" values="1;0.35;1" dur="8s" begin="3s" repeatCount="indefinite"/></path>
+  <text x="652" y="344" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="16" fill="#C9CEE8"><tspan fill="#5EE0A0" font-weight="700">Таблица из базы целиком</tspan> - модель пишет только вывод</text>
+  <path d="M40 362 H1160" stroke="#FFFFFF" stroke-opacity="0.04" stroke-width="1"/>
+  <path d="M50 381 l7 7 m0 -7 l-7 7" stroke="#FF6B7A" stroke-opacity="0.8" stroke-width="1.6" stroke-linecap="round"/>
+  <text x="72" y="390" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="16" fill="#C9CEE8">Непонятно, в каких таблицах данные за период</text>
+  <path d="M630 384 l4 4 8 -9" fill="none" stroke="#5EE0A0" stroke-width="2" stroke-linecap="round"><animate attributeName="stroke-opacity" values="1;0.35;1" dur="8s" begin="4s" repeatCount="indefinite"/></path>
+  <text x="652" y="390" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="16" fill="#C9CEE8"><tspan fill="#5EE0A0" font-weight="700">data_profile</tspan> - проверяет таблицы пачками за 15 секунд</text>
+  <path d="M40 408 H1160" stroke="#FFFFFF" stroke-opacity="0.04" stroke-width="1"/>
+  <path d="M50 427 l7 7 m0 -7 l-7 7" stroke="#FF6B7A" stroke-opacity="0.8" stroke-width="1.6" stroke-linecap="round"/>
+  <text x="72" y="436" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="16" fill="#C9CEE8">Нужный отчет есть, но его надо найти и настроить</text>
+  <path d="M630 430 l4 4 8 -9" fill="none" stroke="#5EE0A0" stroke-width="2" stroke-linecap="round"><animate attributeName="stroke-opacity" values="1;0.35;1" dur="8s" begin="5s" repeatCount="indefinite"/></path>
+  <text x="652" y="436" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="16" fill="#C9CEE8"><tspan fill="#5EE0A0" font-weight="700">Готовые отчеты БСП</tspan> - модель находит вариант и задает период</text>
+  <path d="M40 454 H1160" stroke="#FFFFFF" stroke-opacity="0.04" stroke-width="1"/>
+  <path d="M50 473 l7 7 m0 -7 l-7 7" stroke="#FF6B7A" stroke-opacity="0.8" stroke-width="1.6" stroke-linecap="round"/>
+  <text x="72" y="482" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="16" fill="#C9CEE8">Журнал регистрации разбирают вручную</text>
+  <path d="M630 476 l4 4 8 -9" fill="none" stroke="#5EE0A0" stroke-width="2" stroke-linecap="round"><animate attributeName="stroke-opacity" values="1;0.35;1" dur="8s" begin="6s" repeatCount="indefinite"/></path>
+  <text x="652" y="482" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="16" fill="#C9CEE8"><tspan fill="#5EE0A0" font-weight="700">read_event_log</tspan> - отбор по уровню, событию, пользователю</text>
+  <path d="M40 500 H1160" stroke="#FFFFFF" stroke-opacity="0.04" stroke-width="1"/>
+  <path d="M50 519 l7 7 m0 -7 l-7 7" stroke="#FF6B7A" stroke-opacity="0.8" stroke-width="1.6" stroke-linecap="round"/>
+  <text x="72" y="528" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="16" fill="#C9CEE8">Доработка мешает обновлять типовую конфигурацию</text>
+  <path d="M630 522 l4 4 8 -9" fill="none" stroke="#5EE0A0" stroke-width="2" stroke-linecap="round"><animate attributeName="stroke-opacity" values="1;0.35;1" dur="8s" begin="7s" repeatCount="indefinite"/></path>
+  <text x="652" y="528" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="16" fill="#C9CEE8"><tspan fill="#5EE0A0" font-weight="700">Отдельное расширение</tspan> - ни одного заимствованного объекта</text>
+</svg>
