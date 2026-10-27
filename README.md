@@ -470,12 +470,12 @@ RTX 5070 12 ГБ: на видеокарте 24 слоя модели, остал
 `python LLM_Orchestrator.py --monitor` открывает монитор отдельным окном.
 
 <p align="center">
-  <img src="docs/assets/monitor.svg" width="900" alt="Монитор оркестратора: история запросов, шаги модели, вызовы инструментов 1С">
+  <img src="docs/assets/monitor.svg" width="900" alt="Монитор оркестратора, реальный прогон 1.4.0: вопрос о валовой прибыли, модель находит вариант отчета и формирует его в сеансе пользователя (1С CALL), выше - вопрос об ошибках журнала регистрации за 46 секунд">
 </p>
 
 <details>
 <summary><b>Светлая тема монитора</b></summary>
-<p align="center"><img src="docs/assets/monitor-light.png" width="900" alt="Монитор оркестратора в светлой теме"></p>
+<p align="center"><img src="docs/assets/monitor-light.svg" width="900" alt="Монитор оркестратора в светлой теме, тот же прогон 1.4.0"></p>
 </details>
 
 ## Инструменты

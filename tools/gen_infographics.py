@@ -478,8 +478,42 @@ def social():
         f'<rect width="{W}" height="{height}"', f'<rect width="1280" height="{height}"').replace('rx="18" fill', 'rx="0" fill')
 
 
+# --------------------------------------------------------------------------------------------- светлый монитор
+# Цвета темной темы монитора -> светлой (переменные body.light в orchestrator/LLM_Orchestrator.py)
+MONITOR_LIGHT = {
+    "#0B0E21": "#F3F4FA", "#0F1330": "#FFFFFF", "#11152F": "#FFFFFF", "#0E1124": "#FFFFFF",
+    "#191D38": "#EEF0F8", "#262C57": "#DDE1EF", "#2C3366": "#DCE0F0", "#151A36": "#F1F2FA",
+    "#E6E8FF": "#1F2440", "#D7DAF5": "#1F2440", "#9AA0C8": "#6B7194", "#7D84B2": "#6B7194",
+    "#FFFFFF": "#0D1024", "#0D1024": "#FFFFFF", "#B3A6FF": "#5B49D6", "#6EE7A8": "#12864A",
+    "#FFC94D": "#A86A00", "#7DD3FC": "#0B6FA0", "#FF6B6B": "#D23C3C", "#1B1A2E": "#FFF8E6",
+    "#4A3F1A": "#F2D9A0",
+}
+
+
+def monitor_light():
+    """Светлая тема монитора из темной: та же разметка и анимация, цвета по переменным светлой темы.
+    Логотип и точки заголовка окна терминала не перекрашиваются."""
+    import re
+    dark = (ASSETS / "monitor.svg").read_text(encoding="utf-8")
+    logo_start = dark.index('<svg x="20" y="24"')
+    logo_end = dark.index("</svg>", logo_start) + len("</svg>")
+    logo = dark[logo_start:logo_end]
+    body = dark[:logo_start] + "@@LOGO@@" + dark[logo_end:]
+    body = re.sub(r"#[0-9A-Fa-f]{6}", lambda m: MONITOR_LIGHT.get(m.group(0).upper(), m.group(0)), body)
+    # точки окна терминала и цвет "1C" в заголовке - как в светлом мониторе
+    for dot, color in (("358", "#FF6B6B"), ("378", "#FFC94D"), ("398", "#6EE7A8")):
+        body = re.sub(rf'(<circle cx="{dot}" cy="135" r="6" fill=")#[0-9A-F]{{6}}', rf"\g<1>{color}", body)
+    body = body.replace('<tspan fill="#FFC21A">1C</tspan>', '<tspan fill="#F5A800">1C</tspan>')
+    body = body.replace(">☀</text>", ">☾</text>")
+    body = body.replace("Монитор LLM-оркестратора</title>", "Монитор LLM-оркестратора, светлая тема</title>")
+    return body.replace("@@LOGO@@", logo)
+
+
 def main():
-    files = {"hero.svg": hero(), "why.svg": why(), "how-it-works.svg": how_it_works(), "audience.svg": audience(),
+    dark_monitor = ASSETS / "monitor.svg"
+    dark_monitor.write_text(dark_monitor.read_text(encoding="utf-8").replace(">21 инструм.<", ">13 инструм.<"),
+                            encoding="utf-8", newline="\n")
+    files = {"monitor-light.svg": monitor_light(),"hero.svg": hero(), "why.svg": why(), "how-it-works.svg": how_it_works(), "audience.svg": audience(),
              "quickstart.svg": quickstart(), "roadmap.svg": roadmap(), "social-preview.svg": social()}
     for name, content in files.items():
         (ASSETS / name).write_text(content, encoding="utf-8", newline="\n")

@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1360" height="820" viewBox="0 0 1360 820" role="img" aria-labelledby="mt md">
+<title id="mt">Монитор LLM-оркестратора, светлая тема</title>
+<desc id="md">Монитор оркестратора, реальный прогон 1.4.0: вопрос из формы 1С о валовой прибыли за год. Модель находит вариант отчета (list_report_variants), формирует два варианта за 01.01-11.10.2026 (run_report_variant) в сеансе пользователя и отвечает, что данных за период нет. Выше - вопрос об ошибках журнала регистрации (read_event_log, 46 секунд).</desc>
+<style>
+  text { white-space: pre; }
+  .ui { font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size: 13px; fill: #1F2440; }
+  .b { font-weight: 600; }
+  .h { font-size: 12px; font-weight: 700; letter-spacing: 1px; fill: #6B7194; }
+  .mono { font-family: 'Cascadia Mono', Consolas, 'DejaVu Sans Mono', monospace; font-size: 13px; fill: #1F2440; }
+  .dim { fill: #6B7194; } .txt { fill: #1F2440; } .ok { fill: #12864A; } .y { fill: #A86A00; }
+  .v { fill: #5B49D6; } .c { fill: #0B6FA0; } .w { fill: #0D1024; } .bold { font-weight: 700; }
+  .ln { opacity: 0; animation: show 16s ease-out infinite; }
+  @keyframes show { 0% { opacity: 0; transform: translateY(4px); } 2.5% { opacity: 1; transform: none; } 90% { opacity: 1; } 96%, 100% { opacity: 0; } }
+  .bar { transform-box: fill-box; transform-origin: left center; transform: scaleX(0);
+         animation: grow 16s ease-out infinite; }
+  @keyframes grow { 0% { transform: scaleX(0); } 6%, 90% { transform: scaleX(1); } 96%, 100% { transform: scaleX(0); } }
+  .pulse { animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: 0.35; } }
+  .busy { animation: busy 1s linear 6; }
+  @keyframes busy { 50% { opacity: 0.2; } }
+</style>
+<rect width="1360" height="820" fill="#F3F4FA"/>
+<rect width="1360" height="98" fill="#FFFFFF"/><line x1="0" y1="98" x2="1360" y2="98" stroke="#DDE1EF"/>
+<svg x="20" y="24" width="48" height="48" viewBox="0 0 32 32">   <rect width="32" height="32" rx="7" fill="#FFC21A"/>   <g transform="translate(-0.7 0.6)">     <g fill="none" stroke="#1B1F3B" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">       <ellipse cx="10" cy="10" rx="4.5" ry="1.8"/>       <path d="M5.5 10 V20 C5.5 21 7.5 21.8 10 21.8 C12.5 21.8 14.5 21 14.5 20 V10"/>       <path d="M5.5 15 C5.5 16 7.5 16.8 10 16.8 C12.5 16.8 14.5 16 14.5 15"/>       <path d="M14.5 15 H19.5"/>       <path d="M22 15 L26 9 M22 15 L27 15 M22 15 L26 21"/>     </g>     <g fill="#1B1F3B">       <circle cx="22" cy="15" r="2.5"/><circle cx="26.3" cy="8.6" r="1.4"/>       <circle cx="27.4" cy="15" r="1.4"/><circle cx="26.3" cy="21.4" r="1.4"/>     </g>   </g></svg>
+<text x="80" y="38" class="ui" style="font-size:19px;font-weight:800"><tspan fill="#F5A800">1C</tspan><tspan fill="#0D1024"> MCP </tspan><tspan fill="#8B7CFF">Ollama</tspan><tspan fill="#0D1024"> Bridge</tspan></text>
+<text x="80" y="60" class="ui dim">Монитор оркестратора: запросы, шаги модели,</text>
+<text x="80" y="78" class="ui dim">вызовы инструментов 1С</text>
+<rect x="408" y="14" width="150" height="30" rx="15" fill="#F1F2FA" stroke="#DCE0F0"/><circle cx="424" cy="29" r="5" fill="#12864A" class="pulse"/><text x="438" y="34" class="ui b" fill="#1F2440">Ожидает запросов</text>
+<rect x="566" y="14" width="288" height="30" rx="15" fill="#F1F2FA" stroke="#DCE0F0"/><text x="580" y="34" class="ui b" fill="#1F2440">qwen2.5-coder:32b · ctx 4096 · GPU 24 сл.</text>
+<rect x="862" y="14" width="116" height="30" rx="15" fill="#F1F2FA" stroke="#DCE0F0"/><text x="876" y="34" class="ui b" fill="#1F2440">13 инструм.</text>
+<rect x="986" y="14" width="216" height="30" rx="15" fill="#F1F2FA" stroke="#DCE0F0"/><text x="1000" y="34" class="ui b" fill="#1F2440">localhost/база/hs/mcp</text>
+<rect x="408" y="52" width="78" height="30" rx="15" fill="#5B49D6" stroke="#DCE0F0"/><text x="422" y="72" class="ui b" fill="#FFFFFF">Запросы</text>
+<rect x="486" y="52" width="104" height="30" rx="15" fill="#F1F2FA" stroke="#DCE0F0"/><text x="500" y="72" class="ui b" fill="#1F2440">Весь журнал</text>
+<rect x="600" y="52" width="130" height="30" rx="15" fill="#5B49D6" stroke="#DCE0F0"/><text x="614" y="72" class="ui b" fill="#FFFFFF">↧ Автопрокрутка</text>
+<rect x="738" y="52" width="84" height="30" rx="15" fill="#F1F2FA" stroke="#DCE0F0"/><text x="752" y="72" class="ui b" fill="#1F2440">Очистить</text>
+<rect x="830" y="52" width="34" height="30" rx="15" fill="#F1F2FA" stroke="#DCE0F0"/><text x="844" y="72" class="ui b" fill="#1F2440">☾</text>
+<rect x="20" y="116" width="300" height="286" rx="12" fill="#FFFFFF" stroke="#DDE1EF"/>
+<text x="36" y="141" class="ui h">ЗАПРОСЫ</text>
+<g class="ln" style="animation-delay:0.4s">
+<text x="40" y="174" class="ui b w">Покажи валовую прибыль</text>
+<text x="40" y="193" class="ui b w">организаций за этот год</text>
+<circle cx="44" cy="211" r="4.5" fill="#12864A"/>
+<text x="56" y="216" class="ui dim">13:44:59 · 1 мин 31 с, шагов: 4</text>
+</g>
+<g>
+<text x="40" y="252" class="ui b w">Перечисли контрагентов</text>
+<text x="40" y="271" class="ui b w">в базе</text>
+<circle cx="44" cy="289" r="4.5" fill="#12864A"/>
+<text x="56" y="294" class="ui dim">13:43:18 · 31 с, шагов: 2</text>
+</g>
+<g>
+<text x="40" y="330" class="ui b w">Какие ошибки были в журнале</text>
+<text x="40" y="349" class="ui b w">регистрации за сутки?</text>
+<circle cx="44" cy="367" r="4.5" fill="#12864A"/>
+<text x="56" y="372" class="ui dim">13:14:04 · 46 с, шагов: 2</text>
+</g>
+<rect x="20" y="420" width="300" height="350" rx="12" fill="#FFFFFF" stroke="#DDE1EF"/>
+<text x="36" y="445" class="ui h">ИНСТРУМЕНТЫ 1С</text>
+<text x="36" y="478" class="ui b w">Данные о конфигурации (инструмент)<tspan class="dim"> (8)</tspan></text>
+<text x="48" y="500" class="mono c">list_metadata_objects</text>
+<text x="48" y="522" class="mono c">get_metadata_structure</text>
+<text x="48" y="544" class="mono c">get_configuration_version</text>
+<text x="48" y="566" class="mono c">run_query</text>
+<text x="48" y="588" class="mono dim">...и еще 4</text>
+<text x="36" y="614" class="ui b w">Инструмент: Данные базы<tspan class="dim"> (5)</tspan></text>
+<text x="48" y="636" class="mono c">read_table</text>
+<text x="48" y="658" class="mono c">data_profile</text>
+<text x="48" y="680" class="mono c">read_event_log</text>
+<text x="48" y="702" class="mono c">list_report_variants</text>
+<text x="48" y="724" class="mono c">run_report_variant</text>
+<rect x="338" y="116" width="1002" height="654" rx="12" fill="#FFFFFF" stroke="#DDE1EF"/>
+<path d="M338 128 a12 12 0 0 1 12 -12 h978 a12 12 0 0 1 12 12 v26 h-1002 z" fill="#EEF0F8"/>
+<circle cx="358" cy="135" r="6" fill="#FF6B6B"/>
+<circle cx="378" cy="135" r="6" fill="#FFC94D"/>
+<circle cx="398" cy="135" r="6" fill="#6EE7A8"/>
+<text x="839.0" y="140" class="mono dim" text-anchor="middle">LLM_Orchestrator.py · qwen2.5-coder:32b · 127.0.0.1:9020</text>
+<text x="356" y="180" class="mono"><tspan class="dim">13:14:23 </tspan><tspan class="v bold">LLM </tspan><tspan class="w bold">Шаг 1: 19 с </tspan></text><rect x="606" y="171" width="90" height="6" rx="3" fill="#DDE1EF"/><rect x="606" y="171" width="49" height="6" rx="3" fill="#5B49D6"/><text x="706" y="180" class="mono"><tspan class="dim">контекст 2 226 / 4 096 ток. · ответ 60 ток. · </tspan><tspan class="v">→ вызов read_event_log</tspan></text>
+<text x="356" y="204" class="mono"><tspan class="dim">13:14:23 </tspan><tspan class="ok bold">1С CALL </tspan><tspan class="w">read_event_log </tspan><tspan class="c">{"periodStart":"2026-10-10","periodEnd":"2026-10-11","levels":["Ошибка"],"mode":"records"}</tspan></text>
+<text x="356" y="228" class="mono"><tspan class="dim">13:14:24 </tspan><tspan class="ok bold">1С RESPONSE </tspan><tspan class="w">read_event_log  </tspan><tspan class="dim">8 207 симв.  ·  1.0 с  ·  обрезано для контекста модели  </tspan><tspan class="v">показать ответ</tspan></text>
+<text x="356" y="252" class="mono"><tspan class="dim">13:14:50 </tspan><tspan class="v bold">LLM </tspan><tspan class="w bold">Шаг 2: 26 с </tspan></text><rect x="606" y="243" width="90" height="6" rx="3" fill="#DDE1EF"/><rect x="606" y="243" width="49" height="6" rx="3" fill="#5B49D6"/><text x="706" y="252" class="mono"><tspan class="dim">контекст 2 228 / 4 096 ток. · ответ 82 ток. · </tspan><tspan class="ok">→ итоговый ответ</tspan></text>
+<rect x="432" y="272" width="872" height="72" rx="10" fill="#F1F2FA" stroke="#DCE0F0"/><text x="450" y="298" class="mono"><tspan class="dim">{ </tspan><tspan class="c">"Success"</tspan><tspan class="dim">: </tspan><tspan class="ok">true</tspan><tspan class="dim">,</tspan></text><text x="462" y="320" class="mono"><tspan class="c">"Text"</tspan><tspan class="dim">: </tspan><tspan class="y">"За последние сутки в журнале регистрации были зарегистрированы несколько ошибок..."</tspan><tspan class="dim"> }</tspan></text><text x="450" y="338" class="mono dim" style="font-size:12px">шагов: 2 · время: 46 с · <tspan class="v">показать Result</tspan></text>
+<g class="ln" style="animation-delay:0.6s"><rect x="356" y="354" width="962" height="50" rx="10" fill="#FFF8E6" stroke="#F2D9A0"/><text x="372" y="376" class="ui b y" style="font-size:14px">▶ Покажи валовую прибыль организаций за этот год</text><text x="372" y="394" class="mono dim" style="font-size:12px">13:44:59 · форма 1С · пользователь: test_admin · инструменты в сеансе пользователя</text></g>
+<g class="ln" style="animation-delay:1.4s"><text x="356" y="430" class="mono"><tspan class="dim">13:45:10 </tspan><tspan class="v bold">LLM </tspan><tspan class="w bold">Шаг 1: 10 с </tspan></text><rect x="606" y="421" width="90" height="6" rx="3" fill="#DDE1EF"/><rect x="606" y="421" width="49" height="6" rx="3" fill="#5B49D6" class="bar" style="animation-delay:1.6s"/><text x="706" y="430" class="mono"><tspan class="dim">контекст 2 227 / 4 096 ток. · ответ 33 ток. · </tspan><tspan class="v">→ вызов list_report_variants</tspan></text></g>
+<g class="ln" style="animation-delay:2.2s"><text x="356" y="454" class="mono"><tspan class="dim">13:45:10 </tspan><tspan class="ok bold">1С CALL </tspan><tspan class="w">list_report_variants </tspan><tspan class="c">{"search":"валовая прибыль","maxItems":10}</tspan></text></g>
+<g class="ln" style="animation-delay:2.8s"><text x="356" y="478" class="mono"><tspan class="dim">13:45:11 </tspan><tspan class="ok bold">1С RESPONSE </tspan><tspan class="w">list_report_variants  </tspan><tspan class="dim">1 826 симв.  ·  1.0 с  </tspan><tspan class="v">показать ответ</tspan></text></g>
+<g class="ln" style="animation-delay:3.8s"><text x="356" y="502" class="mono"><tspan class="dim">13:45:37 </tspan><tspan class="v bold">LLM </tspan><tspan class="w bold">Шаг 2: 27 с </tspan></text><rect x="606" y="493" width="90" height="6" rx="3" fill="#DDE1EF"/><rect x="606" y="493" width="48" height="6" rx="3" fill="#5B49D6" class="bar" style="animation-delay:4.0s"/><text x="706" y="502" class="mono"><tspan class="dim">контекст 2 176 / 4 096 ток. · ответ 81 ток. · </tspan><tspan class="v">→ вызов run_report_variant</tspan></text></g>
+<g class="ln" style="animation-delay:4.6s"><text x="356" y="526" class="mono"><tspan class="dim">13:45:37 </tspan><tspan class="ok bold">1С CALL </tspan><tspan class="w">run_report_variant </tspan><tspan class="c">{"variant":"30759bcc...","periodStart":"2026-01-01","periodEnd":"2026-10-11"}</tspan></text></g>
+<g class="ln" style="animation-delay:5.2s"><text x="356" y="550" class="mono"><tspan class="dim">13:45:40 </tspan><tspan class="ok bold">1С RESPONSE </tspan><tspan class="w">run_report_variant  </tspan><tspan class="dim">712 симв.  ·  2.8 с  </tspan><tspan class="v">показать ответ</tspan></text></g>
+<g class="ln" style="animation-delay:6.2s"><text x="356" y="574" class="mono"><tspan class="dim">13:46:06 </tspan><tspan class="v bold">LLM </tspan><tspan class="w bold">Шаг 3: 26 с </tspan></text><rect x="606" y="565" width="90" height="6" rx="3" fill="#DDE1EF"/><rect x="606" y="565" width="55" height="6" rx="3" fill="#5B49D6" class="bar" style="animation-delay:6.4s"/><text x="706" y="574" class="mono"><tspan class="dim">контекст 2 518 / 4 096 ток. · ответ 83 ток. · </tspan><tspan class="v">→ вызов run_report_variant</tspan></text></g>
+<g class="ln" style="animation-delay:7.0s"><text x="356" y="598" class="mono"><tspan class="dim">13:46:06 </tspan><tspan class="ok bold">1С CALL </tspan><tspan class="w">run_report_variant </tspan><tspan class="c">{"variant":"30759b92...","periodStart":"2026-01-01","periodEnd":"2026-10-11"}</tspan></text></g>
+<g class="ln" style="animation-delay:7.6s"><text x="356" y="622" class="mono"><tspan class="dim">13:46:08 </tspan><tspan class="ok bold">1С RESPONSE </tspan><tspan class="w">run_report_variant  </tspan><tspan class="dim">808 симв.  ·  1.4 с  </tspan><tspan class="v">показать ответ</tspan></text></g>
+<g class="ln" style="animation-delay:8.6s"><text x="356" y="646" class="mono"><tspan class="dim">13:46:30 </tspan><tspan class="v bold">LLM </tspan><tspan class="w bold">Шаг 4: 23 с </tspan></text><rect x="606" y="637" width="90" height="6" rx="3" fill="#DDE1EF"/><rect x="606" y="637" width="64" height="6" rx="3" fill="#5B49D6" class="bar" style="animation-delay:8.8s"/><text x="706" y="646" class="mono"><tspan class="dim">контекст 2 894 / 4 096 ток. · ответ 68 ток. · </tspan><tspan class="ok">→ итоговый ответ</tspan></text></g>
+<g class="ln" style="animation-delay:9.4s"><rect x="432" y="666" width="872" height="72" rx="10" fill="#F1F2FA" stroke="#DCE0F0"/><text x="450" y="692" class="mono"><tspan class="dim">{ </tspan><tspan class="c">"Success"</tspan><tspan class="dim">: </tspan><tspan class="ok">true</tspan><tspan class="dim">,</tspan></text><text x="462" y="714" class="mono"><tspan class="c">"Text"</tspan><tspan class="dim">: </tspan><tspan class="y">"Данных о валовой прибыли организаций за период с 01.01.2026 по 11.10.2026 в базе нет."</tspan><tspan class="dim"> }</tspan></text><text x="450" y="732" class="mono dim" style="font-size:12px">шагов: 4 · время: 1 мин 31 с · <tspan class="v">показать Result</tspan></text></g>
+<rect y="786" width="1360" height="34" fill="#FFFFFF"/><line x1="0" y1="786" x2="1360" y2="786" stroke="#DDE1EF"/>
+<text x="20" y="808" class="ui dim">Обновлено: <tspan class="w b">13:46:30</tspan>     Запущен: <tspan class="w b">2026-10-11 13:10:40</tspan>     Адрес: <tspan class="w b">127.0.0.1:9020</tspan></text>
+</svg>
